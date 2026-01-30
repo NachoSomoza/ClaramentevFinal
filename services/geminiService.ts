@@ -3,14 +3,17 @@ import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { ComicScene } from "../types";
 
 /**
- * // Use a function to get a fresh instance as per guidelines for key selection
+ * Instrucción base de seguridad para asegurar que el contenido sea apto para niños.
+ */
+const KID_SAFETY_PROMPT = "REGLA CRÍTICA DE SEGURIDAD: Eres una aplicación para niños. Si detectas contenido adulto, violento, inapropiado o dañino en el texto proporcionado o en la consulta del usuario, DEBES negarte educadamente a procesarlo y responder: '¡Lo siento! Este contenido no es apto para niños y mi magia solo funciona con historias amigables.'";
+
+/**
  * Inicialización segura del cliente Gemini.
- * La API KEY se obtiene del entorno de ejecución automáticamente.
  */
 export const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
- * // Manual implementation of decode as per instructions
+ * Implementación manual de decode para base64.
  */
 export function decode(base64: string) {
   const binaryString = atob(base64);
@@ -23,7 +26,7 @@ export function decode(base64: string) {
 }
 
 /**
- * // Manual implementation of encode as per instructions
+ * Implementación manual de encode para base64.
  */
 export function encode(bytes: Uint8Array) {
   let binary = '';
@@ -35,7 +38,8 @@ export function encode(bytes: Uint8Array) {
 }
 
 /**
- * // Audio decoding following coding guidelines for raw PCM streams
+ * Decodificación de audio PCM crudo para Web Audio API.
+ * Se corrigió el acceso al buffer para asegurar compatibilidad en móviles (iOS/Android).
  */
 export async function decodeAudioData(
   data: Uint8Array,
@@ -43,7 +47,9 @@ export async function decodeAudioData(
   sampleRate: number = 24000,
   numChannels: number = 1,
 ): Promise<AudioBuffer> {
-  const dataInt16 = new Int16Array(data.buffer);
+  // Aseguramos que el buffer esté alineado correctamente para Int16Array
+  const arrayBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+  const dataInt16 = new Int16Array(arrayBuffer);
   const frameCount = dataInt16.length / numChannels;
   const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
 
@@ -57,7 +63,7 @@ export async function decodeAudioData(
 }
 
 /**
- * EXTRAER TEXTO (OCR Inteligente)
+ * EXTRAER TEXTO (OCR Inteligente) con filtro de seguridad.
  */
 export async function extractTextFromMedia(base64Data: string, mimeType: string): Promise<string> {
   const ai = getAI();
@@ -66,7 +72,7 @@ export async function extractTextFromMedia(base64Data: string, mimeType: string)
     contents: {
       parts: [
         { inlineData: { data: base64Data, mimeType: mimeType } },
-        { text: "Extrae todo el texto de esta imagen de forma literal. Si es un cuento, mantén los diálogos y párrafos. Responde solo con el texto." }
+        { text: `${KID_SAFETY_PROMPT}\nExtrae todo el texto de esta imagen de forma literal. Si detectas contenido para adultos, detente.` }
       ]
     }
   });
@@ -74,13 +80,13 @@ export async function extractTextFromMedia(base64Data: string, mimeType: string)
 }
 
 /**
- * GENERAR RESUMEN SIMPLE
+ * GENERAR RESUMEN SIMPLE con filtro de seguridad.
  */
 export async function generateSimpleSummary(text: string): Promise<string[]> {
   const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `Resume este texto en 3 puntos clave muy fáciles de entender para un niño. Responde solo con el JSON de un array de strings:\n\n${text}`,
+    contents: `${KID_SAFETY_PROMPT}\nResume este texto en 3 puntos clave muy fáciles para un niño. Responde solo JSON array de strings:\n\n${text}`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -92,18 +98,18 @@ export async function generateSimpleSummary(text: string): Promise<string[]> {
   try {
     return JSON.parse(response.text || "[]");
   } catch {
-    return [];
+    return ["No pude resumir esta historia."];
   }
 }
 
 /**
- * GENERAR PREGUNTAS SUGERIDAS
+ * GENERAR PREGUNTAS SUGERIDAS con filtro de seguridad.
  */
 export async function generateSuggestedQuestions(text: string): Promise<string[]> {
   const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `Genera 3 preguntas simples que un niño podría tener sobre este texto. Responde solo con un array JSON de strings:\n\n${text}`,
+    contents: `${KID_SAFETY_PROMPT}\nGenera 3 preguntas simples para un niño sobre este texto. Responde solo array JSON de strings:\n\n${text}`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -120,28 +126,28 @@ export async function generateSuggestedQuestions(text: string): Promise<string[]
 }
 
 /**
- * CHAT CON DOCUMENTO
+ * CHAT CON DOCUMENTO con filtro de seguridad.
  */
 export async function chatWithDocument(text: string, userMessage: string) {
   const ai = getAI();
   const chat = ai.chats.create({
     model: 'gemini-3-flash-preview',
     config: {
-      systemInstruction: `Eres Claramente, un tutor amigable. Responde dudas sobre este texto de forma sencilla y divertida: "${text.substring(0, 3000)}"`,
+      systemInstruction: `${KID_SAFETY_PROMPT}\nEres Claramente, un tutor amigable para niños. Responde dudas sobre este texto de forma sencilla y divertida: "${text.substring(0, 3000)}"`,
     }
   });
   const result = await chat.sendMessage({ message: userMessage });
-  return result.text || "¡Perdona! Me distraje un segundo. ¿Me repites?";
+  return result.text || "¡Perdona! Me distraje un segundo.";
 }
 
 /**
- * GENERAR CÓMIC (Escenas e Imágenes)
+ * GENERAR CÓMIC con filtro de seguridad.
  */
 export async function generateComicScenes(text: string): Promise<ComicScene[]> {
   const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `Divide esta historia en 4 escenas visuales para un cómic. Describe cada una brevemente.\n\nTexto: ${text}`,
+    contents: `${KID_SAFETY_PROMPT}\nDivide esta historia infantil en 4 escenas visuales. Texto: ${text}`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -165,14 +171,14 @@ export async function generateComicScenes(text: string): Promise<ComicScene[]> {
 }
 
 /**
- * // Renamed to match ComicMode usage
+ * GENERAR IMAGEN DE ESCENA.
  */
 export async function generateSceneImage(scene: ComicScene): Promise<string> {
   const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: {
-      parts: [{ text: `Ilustración infantil mágica, estilo Pixar, colores vibrantes, amigable: ${scene.description}. Keywords: ${scene.keywords?.join(", ")}` }]
+      parts: [{ text: `Ilustración infantil mágica, estilo Pixar, colores vibrantes, amigable, SIN contenido adulto ni violento: ${scene.description}.` }]
     },
     config: { imageConfig: { aspectRatio: "1:1" } }
   });
@@ -186,7 +192,7 @@ export async function generateSceneImage(scene: ComicScene): Promise<string> {
 }
 
 /**
- * GENERAR AUDIO (TTS)
+ * GENERAR AUDIO (TTS).
  */
 export async function generateSpeech(text: string): Promise<string> {
   const ai = getAI();
@@ -204,13 +210,13 @@ export async function generateSpeech(text: string): Promise<string> {
 }
 
 /**
- * // Generate a detailed prompt for Video generation
+ * GENERAR PROMPT DE VIDEO con filtro de seguridad.
  */
 export async function generateVideoPrompt(text: string): Promise<string> {
   const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `Crea un prompt visual detallado para generar un video de 16:9 basado en esta historia para niños: ${text.substring(0, 1000)}. Enfócate en el estilo visual mágico y amigable. Responde solo con el prompt en inglés.`,
+    contents: `${KID_SAFETY_PROMPT}\nCrea un prompt visual detallado para un video de historia infantil: ${text.substring(0, 1000)}. Responde solo en inglés.`,
   });
-  return response.text || "A magical story scene for children, colorful animation style.";
+  return response.text || "A happy children's story scene.";
 }
