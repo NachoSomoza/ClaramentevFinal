@@ -11,7 +11,7 @@ REGLA CRÍTICA DE SEGURIDAD: Eres un asistente para niños pequeños (6-10 años
 
 export const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-// Instancia única de AudioContext para toda la app (Singleton)
+// Instancia única de AudioContext
 let globalAudioContext: AudioContext | null = null;
 
 export const getSharedAudioContext = () => {
@@ -22,6 +22,24 @@ export const getSharedAudioContext = () => {
   return globalAudioContext;
 };
 
+/**
+ * Función crítica para iPhone: Debe llamarse dentro de un evento de click síncrono.
+ */
+export const unlockAudioForiOS = async () => {
+  const ctx = getSharedAudioContext();
+  if (ctx.state === 'suspended') {
+    await ctx.resume();
+  }
+  // Generar un micro-silencio para confirmar la activación
+  const buffer = ctx.createBuffer(1, 1, 22050);
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(ctx.destination);
+  source.start(0);
+  return ctx;
+};
+
+// base64 decoding helper for PCM audio data as required by Gemini Live API guidelines
 export function decode(base64: string) {
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
@@ -31,21 +49,23 @@ export function decode(base64: string) {
   return bytes;
 }
 
+// base64 encoding helper for PCM audio data as required by Gemini Live API guidelines
 export function encode(bytes: Uint8Array) {
   let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
 }
 
+// Manual PCM audio decoding as required for streaming audio output from Gemini models
 export async function decodeAudioData(
   data: Uint8Array,
   ctx: AudioContext,
   sampleRate: number = 24000,
   numChannels: number = 1,
 ): Promise<AudioBuffer> {
-  // Safari requiere que el buffer se maneje con cuidado
   const arrayBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
   const dataInt16 = new Int16Array(arrayBuffer);
   const frameCount = dataInt16.length / numChannels;
