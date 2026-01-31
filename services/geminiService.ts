@@ -3,43 +3,36 @@ import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { ComicScene } from "../types";
 
 /**
- * Instrucción base de seguridad para asegurar que el contenido sea apto para niños.
+ * REGLAS DE SEGURIDAD ESTRICTAS
  */
-const KID_SAFETY_PROMPT = "REGLA CRÍTICA DE SEGURIDAD: Eres una aplicación para niños. Si detectas contenido adulto, violento, inapropiado o dañino en el texto proporcionado o en la consulta del usuario, DEBES negarte educadamente a procesarlo y responder: '¡Lo siento! Este contenido no es apto para niños y mi magia solo funciona con historias amigables.'";
+const KID_SAFETY_PROMPT = `
+REGLA CRÍTICA DE SEGURIDAD: Eres un asistente para niños pequeños (6-10 años).
+1. Si el texto contiene: violencia explícita, contenido sexual, lenguaje adulto, drogas o temas de terror intenso, DEBES detenerte.
+2. Tu respuesta DEBE ser siempre: "¡Ups! Este contenido no es apto para niños. Mi magia solo funciona con historias bonitas y seguras."
+3. No menciones que eres una IA, actúa como un compañero mágico.
+`;
 
-/**
- * Inicialización segura del cliente Gemini.
- */
 export const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-/**
- * Implementación manual de decode para base64.
- */
 export function decode(base64: string) {
   const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
     bytes[i] = binaryString.charCodeAt(i);
   }
   return bytes;
 }
 
-/**
- * Implementación manual de encode para base64.
- */
 export function encode(bytes: Uint8Array) {
   let binary = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
+  for (let i = 0; i < bytes.byteLength; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
 }
 
 /**
- * Decodificación de audio PCM crudo para Web Audio API.
- * Se corrigió el acceso al buffer para asegurar compatibilidad en móviles (iOS/Android).
+ * Decodificación de audio PCM optimizada para WebKit (iOS)
  */
 export async function decodeAudioData(
   data: Uint8Array,
@@ -47,10 +40,12 @@ export async function decodeAudioData(
   sampleRate: number = 24000,
   numChannels: number = 1,
 ): Promise<AudioBuffer> {
-  // Aseguramos que el buffer esté alineado correctamente para Int16Array
+  // Aseguramos que el buffer sea un ArrayBuffer limpio
   const arrayBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
   const dataInt16 = new Int16Array(arrayBuffer);
   const frameCount = dataInt16.length / numChannels;
+  
+  // En iOS es vital que el AudioContext esté activo antes de crear el buffer
   const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
 
   for (let channel = 0; channel < numChannels; channel++) {
@@ -62,9 +57,6 @@ export async function decodeAudioData(
   return buffer;
 }
 
-/**
- * EXTRAER TEXTO (OCR Inteligente) con filtro de seguridad.
- */
 export async function extractTextFromMedia(base64Data: string, mimeType: string): Promise<string> {
   const ai = getAI();
   const response = await ai.models.generateContent({
@@ -72,21 +64,22 @@ export async function extractTextFromMedia(base64Data: string, mimeType: string)
     contents: {
       parts: [
         { inlineData: { data: base64Data, mimeType: mimeType } },
-        { text: `${KID_SAFETY_PROMPT}\nExtrae todo el texto de esta imagen de forma literal. Si detectas contenido para adultos, detente.` }
+        { text: `${KID_SAFETY_PROMPT}\nExtrae el texto. Si es inapropiado para niños, aplica la regla de seguridad.` }
       ]
     }
   });
-  return response.text || "";
+  const result = response.text || "";
+  if (result.includes("no es apto para niños")) {
+    throw new Error(result);
+  }
+  return result;
 }
 
-/**
- * GENERAR RESUMEN SIMPLE con filtro de seguridad.
- */
 export async function generateSimpleSummary(text: string): Promise<string[]> {
   const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `${KID_SAFETY_PROMPT}\nResume este texto en 3 puntos clave muy fáciles para un niño. Responde solo JSON array de strings:\n\n${text}`,
+    contents: `${KID_SAFETY_PROMPT}\nResume en 3 puntos para niños. Solo JSON array:\n\n${text}`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -96,20 +89,18 @@ export async function generateSimpleSummary(text: string): Promise<string[]> {
     }
   });
   try {
-    return JSON.parse(response.text || "[]");
+    const parsed = JSON.parse(response.text || "[]");
+    return Array.isArray(parsed) ? parsed : ["No pude resumir esta historia de forma segura."];
   } catch {
-    return ["No pude resumir esta historia."];
+    return ["Esta historia es un poco compleja, ¡mejor leamos juntos!"];
   }
 }
 
-/**
- * GENERAR PREGUNTAS SUGERIDAS con filtro de seguridad.
- */
 export async function generateSuggestedQuestions(text: string): Promise<string[]> {
   const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `${KID_SAFETY_PROMPT}\nGenera 3 preguntas simples para un niño sobre este texto. Responde solo array JSON de strings:\n\n${text}`,
+    contents: `${KID_SAFETY_PROMPT}\n3 preguntas cortas para niños. Solo JSON array:\n\n${text}`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -125,29 +116,23 @@ export async function generateSuggestedQuestions(text: string): Promise<string[]
   }
 }
 
-/**
- * CHAT CON DOCUMENTO con filtro de seguridad.
- */
 export async function chatWithDocument(text: string, userMessage: string) {
   const ai = getAI();
   const chat = ai.chats.create({
     model: 'gemini-3-flash-preview',
     config: {
-      systemInstruction: `${KID_SAFETY_PROMPT}\nEres Claramente, un tutor amigable para niños. Responde dudas sobre este texto de forma sencilla y divertida: "${text.substring(0, 3000)}"`,
+      systemInstruction: `${KID_SAFETY_PROMPT}\nResponde de forma amigable sobre este texto infantil: "${text.substring(0, 2000)}"`,
     }
   });
   const result = await chat.sendMessage({ message: userMessage });
-  return result.text || "¡Perdona! Me distraje un segundo.";
+  return result.text || "¡Ups! Mi magia se ha despistado.";
 }
 
-/**
- * GENERAR CÓMIC con filtro de seguridad.
- */
 export async function generateComicScenes(text: string): Promise<ComicScene[]> {
   const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `${KID_SAFETY_PROMPT}\nDivide esta historia infantil en 4 escenas visuales. Texto: ${text}`,
+    contents: `${KID_SAFETY_PROMPT}\nCrea 4 escenas para un cómic infantil. Solo JSON array de objetos {description, keywords}:\n\n${text}`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -170,15 +155,12 @@ export async function generateComicScenes(text: string): Promise<ComicScene[]> {
   }
 }
 
-/**
- * GENERAR IMAGEN DE ESCENA.
- */
 export async function generateSceneImage(scene: ComicScene): Promise<string> {
   const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: {
-      parts: [{ text: `Ilustración infantil mágica, estilo Pixar, colores vibrantes, amigable, SIN contenido adulto ni violento: ${scene.description}.` }]
+      parts: [{ text: `Digital art for children, Pixar style, friendly, bright colors, NO violence, NO adult content: ${scene.description}.` }]
     },
     config: { imageConfig: { aspectRatio: "1:1" } }
   });
@@ -191,9 +173,6 @@ export async function generateSceneImage(scene: ComicScene): Promise<string> {
   return "";
 }
 
-/**
- * GENERAR AUDIO (TTS).
- */
 export async function generateSpeech(text: string): Promise<string> {
   const ai = getAI();
   const response = await ai.models.generateContent({
@@ -209,14 +188,11 @@ export async function generateSpeech(text: string): Promise<string> {
   return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || "";
 }
 
-/**
- * GENERAR PROMPT DE VIDEO con filtro de seguridad.
- */
 export async function generateVideoPrompt(text: string): Promise<string> {
   const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `${KID_SAFETY_PROMPT}\nCrea un prompt visual detallado para un video de historia infantil: ${text.substring(0, 1000)}. Responde solo en inglés.`,
+    contents: `${KID_SAFETY_PROMPT}\nPrompt de video infantil (inglés). Solo texto:\n\n${text.substring(0, 500)}`,
   });
-  return response.text || "A happy children's story scene.";
+  return response.text || "A beautiful magical forest for children.";
 }
