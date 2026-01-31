@@ -4,12 +4,23 @@ import { ComicScene } from "../types";
 
 const KID_SAFETY_PROMPT = `
 REGLA CRÍTICA DE SEGURIDAD: Eres un asistente para niños pequeños (6-10 años).
-1. Si el texto contiene: violencia explícita, contenido sexual, lenguaje adulto, drogas o temas de terror intenso, DEBES detenerte.
+1. Si el texto contiene: violencia explícita, contenido sexual, lenguaje adulto, temas de terror intenso, DEBES detenerte.
 2. Tu respuesta DEBE ser siempre: "¡Ups! Este contenido no es apto para niños. Mi magia solo funciona con historias bonitas y seguras."
-3. No menciones que eres una IA, actúa como un compañero mágico.
+3. Actúa como un compañero mágico.
 `;
 
 export const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+// Instancia única de AudioContext para toda la app (Singleton)
+let globalAudioContext: AudioContext | null = null;
+
+export const getSharedAudioContext = () => {
+  if (!globalAudioContext) {
+    const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+    globalAudioContext = new AudioContextClass({ sampleRate: 24000 });
+  }
+  return globalAudioContext;
+};
 
 export function decode(base64: string) {
   const binaryString = atob(base64);
@@ -28,16 +39,13 @@ export function encode(bytes: Uint8Array) {
   return btoa(binary);
 }
 
-/**
- * Decodificación optimizada.
- * Se asegura de que el contexto de audio esté listo y maneja el buffer de forma más eficiente.
- */
 export async function decodeAudioData(
   data: Uint8Array,
   ctx: AudioContext,
   sampleRate: number = 24000,
   numChannels: number = 1,
 ): Promise<AudioBuffer> {
+  // Safari requiere que el buffer se maneje con cuidado
   const arrayBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
   const dataInt16 = new Int16Array(arrayBuffer);
   const frameCount = dataInt16.length / numChannels;
@@ -59,7 +67,7 @@ export async function extractTextFromMedia(base64Data: string, mimeType: string)
     contents: {
       parts: [
         { inlineData: { data: base64Data, mimeType: mimeType } },
-        { text: `${KID_SAFETY_PROMPT}\nExtrae el texto. Si es inapropiado para niños, aplica la regla de seguridad.` }
+        { text: `${KID_SAFETY_PROMPT}\nExtrae el texto. Si es inapropiado, aplica seguridad.` }
       ]
     }
   });
@@ -81,11 +89,7 @@ export async function generateSimpleSummary(text: string): Promise<string[]> {
       }
     }
   });
-  try {
-    return JSON.parse(response.text || "[]");
-  } catch {
-    return ["Esta historia es genial, ¡leamos los detalles!"];
-  }
+  try { return JSON.parse(response.text || "[]"); } catch { return ["¡Leamos juntos!"]; }
 }
 
 export async function generateSuggestedQuestions(text: string): Promise<string[]> {
@@ -101,9 +105,7 @@ export async function generateSuggestedQuestions(text: string): Promise<string[]
       }
     }
   });
-  try {
-    return JSON.parse(response.text || "[]");
-  } catch { return []; }
+  try { return JSON.parse(response.text || "[]"); } catch { return []; }
 }
 
 export async function chatWithDocument(text: string, userMessage: string) {
@@ -111,18 +113,18 @@ export async function chatWithDocument(text: string, userMessage: string) {
   const chat = ai.chats.create({
     model: 'gemini-3-flash-preview',
     config: {
-      systemInstruction: `${KID_SAFETY_PROMPT}\nResponde amigablemente sobre este texto infantil: "${text.substring(0, 2000)}"`,
+      systemInstruction: `${KID_SAFETY_PROMPT}\nResponde amigablemente sobre: "${text.substring(0, 2000)}"`,
     }
   });
   const result = await chat.sendMessage({ message: userMessage });
-  return result.text || "¡Ups! Me distraje un poquito.";
+  return result.text || "¡Ups!";
 }
 
 export async function generateComicScenes(text: string): Promise<ComicScene[]> {
   const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `${KID_SAFETY_PROMPT}\nCrea 4 escenas para un cómic infantil. Solo JSON array de objetos {description, keywords}:\n\n${text}`,
+    contents: `${KID_SAFETY_PROMPT}\nCrea 4 escenas de cómic infantil. Solo JSON array de objetos {description, keywords}:\n\n${text}`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -138,9 +140,7 @@ export async function generateComicScenes(text: string): Promise<ComicScene[]> {
       }
     }
   });
-  try {
-    return JSON.parse(response.text || "[]");
-  } catch { return []; }
+  try { return JSON.parse(response.text || "[]"); } catch { return []; }
 }
 
 export async function generateSceneImage(scene: ComicScene): Promise<string> {
@@ -148,7 +148,7 @@ export async function generateSceneImage(scene: ComicScene): Promise<string> {
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: {
-      parts: [{ text: `Digital art for children, Pixar style, friendly, bright colors, NO violence, NO adult content: ${scene.description}.` }]
+      parts: [{ text: `Children story illustration, Pixar style, friendly, colorful: ${scene.description}.` }]
     },
     config: { imageConfig: { aspectRatio: "1:1" } }
   });
@@ -179,5 +179,5 @@ export async function generateVideoPrompt(text: string): Promise<string> {
     model: 'gemini-3-flash-preview',
     contents: `${KID_SAFETY_PROMPT}\nPrompt de video infantil (inglés). Solo texto:\n\n${text.substring(0, 500)}`,
   });
-  return response.text || "A beautiful magical forest for children.";
+  return response.text || "A magical forest.";
 }
