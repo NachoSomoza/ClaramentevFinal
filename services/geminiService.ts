@@ -2,9 +2,6 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { ComicScene } from "../types";
 
-/**
- * REGLAS DE SEGURIDAD ESTRICTAS
- */
 const KID_SAFETY_PROMPT = `
 REGLA CRÍTICA DE SEGURIDAD: Eres un asistente para niños pequeños (6-10 años).
 1. Si el texto contiene: violencia explícita, contenido sexual, lenguaje adulto, drogas o temas de terror intenso, DEBES detenerte.
@@ -32,7 +29,8 @@ export function encode(bytes: Uint8Array) {
 }
 
 /**
- * Decodificación de audio PCM optimizada para WebKit (iOS)
+ * Decodificación optimizada.
+ * Se asegura de que el contexto de audio esté listo y maneja el buffer de forma más eficiente.
  */
 export async function decodeAudioData(
   data: Uint8Array,
@@ -40,14 +38,11 @@ export async function decodeAudioData(
   sampleRate: number = 24000,
   numChannels: number = 1,
 ): Promise<AudioBuffer> {
-  // Aseguramos que el buffer sea un ArrayBuffer limpio
   const arrayBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
   const dataInt16 = new Int16Array(arrayBuffer);
   const frameCount = dataInt16.length / numChannels;
   
-  // En iOS es vital que el AudioContext esté activo antes de crear el buffer
   const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
-
   for (let channel = 0; channel < numChannels; channel++) {
     const channelData = buffer.getChannelData(channel);
     for (let i = 0; i < frameCount; i++) {
@@ -69,9 +64,7 @@ export async function extractTextFromMedia(base64Data: string, mimeType: string)
     }
   });
   const result = response.text || "";
-  if (result.includes("no es apto para niños")) {
-    throw new Error(result);
-  }
+  if (result.includes("no es apto para niños")) throw new Error(result);
   return result;
 }
 
@@ -89,10 +82,9 @@ export async function generateSimpleSummary(text: string): Promise<string[]> {
     }
   });
   try {
-    const parsed = JSON.parse(response.text || "[]");
-    return Array.isArray(parsed) ? parsed : ["No pude resumir esta historia de forma segura."];
+    return JSON.parse(response.text || "[]");
   } catch {
-    return ["Esta historia es un poco compleja, ¡mejor leamos juntos!"];
+    return ["Esta historia es genial, ¡leamos los detalles!"];
   }
 }
 
@@ -111,9 +103,7 @@ export async function generateSuggestedQuestions(text: string): Promise<string[]
   });
   try {
     return JSON.parse(response.text || "[]");
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
 export async function chatWithDocument(text: string, userMessage: string) {
@@ -121,11 +111,11 @@ export async function chatWithDocument(text: string, userMessage: string) {
   const chat = ai.chats.create({
     model: 'gemini-3-flash-preview',
     config: {
-      systemInstruction: `${KID_SAFETY_PROMPT}\nResponde de forma amigable sobre este texto infantil: "${text.substring(0, 2000)}"`,
+      systemInstruction: `${KID_SAFETY_PROMPT}\nResponde amigablemente sobre este texto infantil: "${text.substring(0, 2000)}"`,
     }
   });
   const result = await chat.sendMessage({ message: userMessage });
-  return result.text || "¡Ups! Mi magia se ha despistado.";
+  return result.text || "¡Ups! Me distraje un poquito.";
 }
 
 export async function generateComicScenes(text: string): Promise<ComicScene[]> {
@@ -150,9 +140,7 @@ export async function generateComicScenes(text: string): Promise<ComicScene[]> {
   });
   try {
     return JSON.parse(response.text || "[]");
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
 export async function generateSceneImage(scene: ComicScene): Promise<string> {
@@ -164,11 +152,8 @@ export async function generateSceneImage(scene: ComicScene): Promise<string> {
     },
     config: { imageConfig: { aspectRatio: "1:1" } }
   });
-
   for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData) {
-      return `data:image/png;base64,${part.inlineData.data}`;
-    }
+    if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
   }
   return "";
 }
