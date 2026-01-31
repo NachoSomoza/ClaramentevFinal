@@ -9,11 +9,12 @@ import {
   VolumeX,
   FastForward,
   Play,
-  Loader2
+  Loader2,
+  Volume2
 } from 'lucide-react';
 import { ReaderSettings } from '../types';
 import { THEMES } from '../constants';
-import { generateSpeech, decode, decodeAudioData } from '../services/geminiService';
+import { generateSpeech, decode, decodeAudioData, getSharedAudioContext } from '../services/geminiService';
 
 interface AdaptiveReaderProps { text: string; }
 
@@ -33,13 +34,10 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
   const [isReading, setIsReading] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
   
-  const audioContextRef = useRef<AudioContext | null>(null);
   const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
   const nextStartTimeRef = useRef<number>(0);
   const isAbortedRef = useRef(false);
   const playbackRateRef = useRef(1);
-  
-  // COLA DE AUDIO PARA PRE-CARGA
   const audioBufferQueueRef = useRef<AudioBuffer[]>([]);
   const prefetchIndexRef = useRef(0);
   const chunksRef = useRef<string[]>([]);
@@ -47,18 +45,9 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
   useEffect(() => { playbackRateRef.current = playbackSpeed; }, [playbackSpeed]);
   
   useEffect(() => {
-    // Dividir el texto en chunks cuando el componente recibe el texto
     chunksRef.current = text.match(/[^.!?\n]+[.!?\n]*/g)?.map(s => s.trim()).filter(s => s.length > 2) || [text];
-    
     return () => stopAudio();
   }, [text]);
-
-  // EMPEZAR PRE-CARGA APENAS ENTRAMOS A LA PANTALLA DE LECTURA
-  useEffect(() => {
-    if (step === 'READ') {
-      startPrefetching();
-    }
-  }, [step]);
 
   const stopAudio = () => {
     isAbortedRef.current = true;
@@ -68,35 +57,28 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
     setIsBuffering(false);
   };
 
-  const startPrefetching = async () => {
-    // No necesitamos AudioContext para la descarga, solo para la decodificación.
-    // Pero en iOS necesitamos que la decodificación ocurra en un contexto "activo".
-    // Así que la pre-carga real (descarga) puede empezar, pero la decodificación 
-    // esperará a que el usuario haga el primer Play.
-  };
-
-  const unlockIOSAudio = async (ctx: AudioContext) => {
-    // Crear un buffer de silencio de 0.1s para "despertar" el audio de iOS
-    const buffer = ctx.createBuffer(1, 1, 22050);
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(ctx.destination);
-    source.start(0);
+  // FUNCIÓN CRÍTICA: Se ejecuta al hacer clic en "¡A leer!"
+  const handleFinalStep = async () => {
+    const ctx = getSharedAudioContext();
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
+    // "Poc" silencioso para asegurar el canal en iOS
+    const b = ctx.createBuffer(1, 1, 22050);
+    const s = ctx.createBufferSource();
+    s.buffer = b;
+    s.connect(ctx.destination);
+    s.start(0);
+    
+    setStep('READ');
   };
 
   const handlePlayAudio = async () => {
     if (isReading) { stopAudio(); return; }
     
     try {
-      if (!audioContextRef.current) {
-        const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-        audioContextRef.current = new AudioContextClass({ sampleRate: 24000 });
-      }
-      const ctx = audioContextRef.current;
-      
-      // DESBLOQUEO CRÍTICO PARA IPHONE
+      const ctx = getSharedAudioContext();
       if (ctx.state === 'suspended') await ctx.resume();
-      await unlockIOSAudio(ctx);
 
       setIsReading(true);
       isAbortedRef.current = false;
@@ -105,7 +87,6 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
       nextStartTimeRef.current = ctx.currentTime;
       let playIndex = 0;
 
-      // TRABAJADOR DE DESCARGA (Fetch & Decode)
       const fetchWorker = async () => {
         while (prefetchIndexRef.current < chunksRef.current.length && !isAbortedRef.current) {
           if (audioBufferQueueRef.current.length < 3) {
@@ -116,16 +97,15 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
               const buffer = await decodeAudioData(decode(base64), ctx);
               audioBufferQueueRef.current.push(buffer);
               if (isReading) setIsBuffering(false);
-            } catch (e) { console.error("TTS Fetch Error:", e); }
+            } catch (e) { console.error(e); }
           } else {
-            await new Promise(r => setTimeout(r, 300));
+            await new Promise(r => setTimeout(r, 200));
           }
         }
       };
 
       fetchWorker();
 
-      // HILO DE REPRODUCCIÓN (Consume la cola)
       while (playIndex < chunksRef.current.length && !isAbortedRef.current) {
         if (audioBufferQueueRef.current.length > 0) {
           setIsBuffering(false);
@@ -143,20 +123,19 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
           nextStartTimeRef.current = startTime + duration;
           playIndex++;
           
-          // Esperar casi hasta el final para solapar ligeramente
-          await new Promise(r => setTimeout(r, (duration * 1000) - 40));
+          await new Promise(r => setTimeout(r, (duration * 1000) - 50));
         } else {
           setIsBuffering(true);
-          await new Promise(r => setTimeout(r, 200));
+          await new Promise(r => setTimeout(r, 100));
         }
       }
       
       if (playIndex >= chunksRef.current.length && !isAbortedRef.current) {
         setIsReading(false);
-        prefetchIndexRef.current = 0; // Reset para la próxima vez
+        prefetchIndexRef.current = 0;
       }
     } catch (err) {
-      console.error("Audio failed:", err);
+      console.error(err);
       setIsReading(false);
     }
   };
@@ -167,7 +146,7 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
   if (step === 'FONT') {
     return (
       <div className="max-w-4xl mx-auto py-6 md:py-12 text-center px-4 animate-in fade-in zoom-in-95">
-        <h2 className="text-3xl md:text-5xl font-black mb-8 md:mb-12 text-slate-800 tracking-tight">¿Qué letra prefieres?</h2>
+        <h2 className="text-3xl md:text-5xl font-black mb-8 text-slate-800 tracking-tight">¿Qué letra prefieres?</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-8">
           {['standard', 'dyslexic', 'rounded'].map((f) => (
             <button key={f} onClick={() => setSettings({ ...settings, fontFamily: f as any })}
@@ -185,10 +164,10 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
   if (step === 'SPACING') {
     return (
       <div className="max-w-4xl mx-auto py-6 md:py-12 text-center px-4 animate-in fade-in zoom-in-95">
-        <h2 className="text-3xl md:text-5xl font-black mb-8 md:mb-12 text-slate-800 tracking-tight">Personaliza tu espacio</h2>
+        <h2 className="text-3xl md:text-5xl font-black mb-8 text-slate-800 tracking-tight">Personaliza tu espacio</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 mb-12">
-          <div className="bg-white p-8 md:p-12 rounded-[2.5rem] border-2 border-slate-50 shadow-sm">
-            <h3 className="text-2xl md:text-3xl font-black mb-8 flex items-center gap-3 justify-center text-blue-600 uppercase tracking-tighter"><AlignJustify className="w-6 h-6" /> Líneas</h3>
+          <div className="bg-white p-8 rounded-[2.5rem] border-2 border-slate-50 shadow-sm">
+            <h3 className="text-2xl font-black mb-8 flex items-center gap-3 justify-center text-blue-600 uppercase tracking-tighter"><AlignJustify className="w-6 h-6" /> Líneas</h3>
             <div className="flex flex-col gap-4">
               {[1.4, 2.0, 2.8].map(v => (
                 <button key={v} onClick={() => setSettings({...settings, lineHeight: v})} className={`py-4 md:py-6 rounded-2xl border-4 text-lg font-bold transition-all ${settings.lineHeight === v ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-50 text-slate-500 hover:border-blue-100 bg-white'}`}>
@@ -197,8 +176,8 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
               ))}
             </div>
           </div>
-          <div className="bg-white p-8 md:p-12 rounded-[2.5rem] border-2 border-slate-50 shadow-sm">
-            <h3 className="text-2xl md:text-3xl font-black mb-8 flex items-center gap-3 justify-center text-teal-600 uppercase tracking-tighter"><Type className="w-6 h-6" /> Letras</h3>
+          <div className="bg-white p-8 rounded-[2.5rem] border-2 border-slate-50 shadow-sm">
+            <h3 className="text-2xl font-black mb-8 flex items-center gap-3 justify-center text-teal-600 uppercase tracking-tighter"><Type className="w-6 h-6" /> Letras</h3>
             <div className="flex flex-col gap-4">
               {[0, 2, 5].map(v => (
                 <button key={v} onClick={() => setSettings({...settings, letterSpacing: v})} className={`py-4 md:py-6 rounded-2xl border-4 text-lg font-bold transition-all ${settings.letterSpacing === v ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-50 text-slate-500 hover:border-teal-100 bg-white'}`}>
@@ -208,9 +187,14 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
             </div>
           </div>
         </div>
-        <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-8">
+        <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-8 items-center">
            <button onClick={() => setStep('FONT')} className="px-8 py-4 text-slate-400 font-black text-lg">Volver</button>
-           <button onClick={() => setStep('READ')} className="px-12 py-5 bg-teal-600 text-white rounded-full font-black text-xl flex items-center gap-3 shadow-lg hover:scale-105 active:scale-95 transition-all">¡A leer! <Check className="w-6 h-6" /></button>
+           <div className="flex flex-col items-center gap-2">
+             <button onClick={handleFinalStep} className="px-12 py-5 bg-teal-600 text-white rounded-full font-black text-xl flex items-center gap-3 shadow-lg hover:scale-105 active:scale-95 transition-all">
+               ¡A leer! <Check className="w-6 h-6" />
+             </button>
+             <span className="text-[10px] text-teal-600 font-bold uppercase tracking-widest flex items-center gap-1"><Volume2 className="w-3 h-3" /> Activa el audio al tocar</span>
+           </div>
         </div>
       </div>
     );
