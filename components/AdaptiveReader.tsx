@@ -38,9 +38,27 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
   const nextStartTimeRef = useRef<number>(0);
   const isAbortedRef = useRef(false);
   const playbackRateRef = useRef(1);
+  
+  // COLA DE AUDIO PARA PRE-CARGA
+  const audioBufferQueueRef = useRef<AudioBuffer[]>([]);
+  const prefetchIndexRef = useRef(0);
+  const chunksRef = useRef<string[]>([]);
 
   useEffect(() => { playbackRateRef.current = playbackSpeed; }, [playbackSpeed]);
-  useEffect(() => { return () => stopAudio(); }, []);
+  
+  useEffect(() => {
+    // Dividir el texto en chunks cuando el componente recibe el texto
+    chunksRef.current = text.match(/[^.!?\n]+[.!?\n]*/g)?.map(s => s.trim()).filter(s => s.length > 2) || [text];
+    
+    return () => stopAudio();
+  }, [text]);
+
+  // EMPEZAR PRE-CARGA APENAS ENTRAMOS A LA PANTALLA DE LECTURA
+  useEffect(() => {
+    if (step === 'READ') {
+      startPrefetching();
+    }
+  }, [step]);
 
   const stopAudio = () => {
     isAbortedRef.current = true;
@@ -50,59 +68,68 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
     setIsBuffering(false);
   };
 
-  const initAudio = async () => {
-    // IMPORTANTE: En iOS el context DEBE ser creado o reanudado tras un click
-    if (!audioContextRef.current) {
-      const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-      audioContextRef.current = new AudioContextClass({ sampleRate: 24000 });
-    }
-    if (audioContextRef.current.state === 'suspended') {
-      await audioContextRef.current.resume();
-    }
-    return audioContextRef.current;
+  const startPrefetching = async () => {
+    // No necesitamos AudioContext para la descarga, solo para la decodificación.
+    // Pero en iOS necesitamos que la decodificación ocurra en un contexto "activo".
+    // Así que la pre-carga real (descarga) puede empezar, pero la decodificación 
+    // esperará a que el usuario haga el primer Play.
+  };
+
+  const unlockIOSAudio = async (ctx: AudioContext) => {
+    // Crear un buffer de silencio de 0.1s para "despertar" el audio de iOS
+    const buffer = ctx.createBuffer(1, 1, 22050);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start(0);
   };
 
   const handlePlayAudio = async () => {
     if (isReading) { stopAudio(); return; }
     
     try {
-      const ctx = await initAudio();
+      if (!audioContextRef.current) {
+        const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+        audioContextRef.current = new AudioContextClass({ sampleRate: 24000 });
+      }
+      const ctx = audioContextRef.current;
+      
+      // DESBLOQUEO CRÍTICO PARA IPHONE
+      if (ctx.state === 'suspended') await ctx.resume();
+      await unlockIOSAudio(ctx);
+
       setIsReading(true);
       isAbortedRef.current = false;
-      setIsBuffering(true);
+      setIsBuffering(audioBufferQueueRef.current.length === 0);
       
       nextStartTimeRef.current = ctx.currentTime;
-      const sentences = text.match(/[^.!?\n]+[.!?\n]*/g) || [text];
-      const chunks = sentences.map(s => s.trim()).filter(s => s.length > 2);
-
-      const audioBufferQueue: AudioBuffer[] = [];
-      let fetchIndex = 0;
       let playIndex = 0;
 
-      // Trabajador de descarga en segundo plano
+      // TRABAJADOR DE DESCARGA (Fetch & Decode)
       const fetchWorker = async () => {
-        while (fetchIndex < chunks.length && !isAbortedRef.current) {
-          if (audioBufferQueue.length < 2) {
+        while (prefetchIndexRef.current < chunksRef.current.length && !isAbortedRef.current) {
+          if (audioBufferQueueRef.current.length < 3) {
             try {
-              const chunk = chunks[fetchIndex++];
+              const chunk = chunksRef.current[prefetchIndexRef.current++];
               const base64 = await generateSpeech(chunk);
               if (isAbortedRef.current) return;
               const buffer = await decodeAudioData(decode(base64), ctx);
-              audioBufferQueue.push(buffer);
-            } catch (e) { console.error("TTS Error:", e); }
+              audioBufferQueueRef.current.push(buffer);
+              if (isReading) setIsBuffering(false);
+            } catch (e) { console.error("TTS Fetch Error:", e); }
           } else {
-            await new Promise(r => setTimeout(r, 200));
+            await new Promise(r => setTimeout(r, 300));
           }
         }
       };
 
       fetchWorker();
 
-      // Hilo de reproducción
-      while (playIndex < chunks.length && !isAbortedRef.current) {
-        if (audioBufferQueue.length > 0) {
+      // HILO DE REPRODUCCIÓN (Consume la cola)
+      while (playIndex < chunksRef.current.length && !isAbortedRef.current) {
+        if (audioBufferQueueRef.current.length > 0) {
           setIsBuffering(false);
-          const buffer = audioBufferQueue.shift()!;
+          const buffer = audioBufferQueueRef.current.shift()!;
           const source = ctx.createBufferSource();
           source.buffer = buffer;
           source.playbackRate.value = playbackRateRef.current;
@@ -116,15 +143,18 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
           nextStartTimeRef.current = startTime + duration;
           playIndex++;
           
-          // Esperamos un poco menos del final para que no haya huecos (gapless)
-          await new Promise(r => setTimeout(r, (duration * 1000) - 30));
+          // Esperar casi hasta el final para solapar ligeramente
+          await new Promise(r => setTimeout(r, (duration * 1000) - 40));
         } else {
           setIsBuffering(true);
-          await new Promise(r => setTimeout(r, 150));
+          await new Promise(r => setTimeout(r, 200));
         }
       }
       
-      if (playIndex >= chunks.length && !isAbortedRef.current) setIsReading(false);
+      if (playIndex >= chunksRef.current.length && !isAbortedRef.current) {
+        setIsReading(false);
+        prefetchIndexRef.current = 0; // Reset para la próxima vez
+      }
     } catch (err) {
       console.error("Audio failed:", err);
       setIsReading(false);
