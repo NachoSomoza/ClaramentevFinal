@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Loader2, Palette, Volume2, Square, FastForward, PlayCircle } from 'lucide-react';
 import { ComicScene } from '../types';
-import { generateComicScenes, generateSceneImage, generateSpeech, decode, decodeAudioData } from '../services/geminiService';
+import { generateComicScenes, generateSceneImage, generateSpeech, decode, decodeAudioData, getSharedAudioContext } from '../services/geminiService';
 
 interface ComicModeProps { text: string; }
 
@@ -13,7 +13,6 @@ export const ComicMode: React.FC<ComicModeProps> = ({ text }) => {
   const [loading, setLoading] = useState(true);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [speakingIdx, setSpeakingIdx] = useState<number | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
 
   useEffect(() => {
@@ -44,19 +43,15 @@ export const ComicMode: React.FC<ComicModeProps> = ({ text }) => {
     stopAudio();
     
     try {
-      if (!audioContextRef.current) {
-        const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-        audioContextRef.current = new AudioContextClass({ sampleRate: 24000 });
-      }
-      const ctx = audioContextRef.current;
+      const ctx = getSharedAudioContext();
       if (ctx.state === 'suspended') await ctx.resume();
       
-      // Desbloqueo rápido para iPhone
-      const unlockBuffer = ctx.createBuffer(1, 1, 22050);
-      const unlockSource = ctx.createBufferSource();
-      unlockSource.buffer = unlockBuffer;
-      unlockSource.connect(ctx.destination);
-      unlockSource.start(0);
+      // Desbloqueo rápido por gesto de usuario
+      const ub = ctx.createBuffer(1, 1, 22050);
+      const us = ctx.createBufferSource();
+      us.buffer = ub;
+      us.connect(ctx.destination);
+      us.start(0);
 
       setSpeakingIdx(idx);
 
@@ -89,7 +84,7 @@ export const ComicMode: React.FC<ComicModeProps> = ({ text }) => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-10 pb-20">
+    <div className="max-w-4xl mx-auto space-y-10 pb-20 px-4">
       <div className="flex flex-col sm:flex-row items-center justify-between p-6 bg-white border-2 border-purple-100 rounded-3xl shadow-sm gap-4">
         <div className="flex items-center gap-4">
            <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center shadow-inner"><Palette className="w-6 h-6" /></div>
