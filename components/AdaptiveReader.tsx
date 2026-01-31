@@ -2,14 +2,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Settings, 
-  Volume2, 
   ArrowRight,
   Check,
   AlignJustify,
   Type,
   VolumeX,
   FastForward,
-  Play
+  Play,
+  Loader2
 } from 'lucide-react';
 import { ReaderSettings } from '../types';
 import { THEMES } from '../constants';
@@ -50,74 +50,85 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
     setIsBuffering(false);
   };
 
-  const initAudioContext = async () => {
+  const initAudio = async () => {
+    // IMPORTANTE: En iOS el context DEBE ser creado o reanudado tras un click
     if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+      audioContextRef.current = new AudioContextClass({ sampleRate: 24000 });
     }
-    const ctx = audioContextRef.current;
-    if (ctx.state === 'suspended') {
-      await ctx.resume();
+    if (audioContextRef.current.state === 'suspended') {
+      await audioContextRef.current.resume();
     }
-    return ctx;
+    return audioContextRef.current;
   };
 
   const handlePlayAudio = async () => {
     if (isReading) { stopAudio(); return; }
     
-    // IMPORTANTE: El resume() debe ocurrir inmediatamente en el click para móviles
-    const ctx = await initAudioContext();
-    
-    setIsReading(true);
-    isAbortedRef.current = false;
-    setIsBuffering(true);
-    
-    nextStartTimeRef.current = ctx.currentTime;
-    const sentences = text.match(/[^.!?\n]+[.!?\n]*/g) || [text];
-    const chunks = sentences.map(s => s.trim()).filter(s => s.length > 2);
+    try {
+      const ctx = await initAudio();
+      setIsReading(true);
+      isAbortedRef.current = false;
+      setIsBuffering(true);
+      
+      nextStartTimeRef.current = ctx.currentTime;
+      const sentences = text.match(/[^.!?\n]+[.!?\n]*/g) || [text];
+      const chunks = sentences.map(s => s.trim()).filter(s => s.length > 2);
 
-    const audioBufferQueue: AudioBuffer[] = [];
-    let fetchIndex = 0;
-    let playIndex = 0;
+      const audioBufferQueue: AudioBuffer[] = [];
+      let fetchIndex = 0;
+      let playIndex = 0;
 
-    const fetchWorker = async () => {
-      while (fetchIndex < chunks.length && !isAbortedRef.current) {
-        if (audioBufferQueue.length < 2) {
-          try {
-            const chunk = chunks[fetchIndex++];
-            const base64 = await generateSpeech(chunk);
-            if (isAbortedRef.current) return;
-            const buffer = await decodeAudioData(decode(base64), ctx);
-            audioBufferQueue.push(buffer);
-          } catch (e) { console.error("Error TTS:", e); }
+      // Trabajador de descarga en segundo plano
+      const fetchWorker = async () => {
+        while (fetchIndex < chunks.length && !isAbortedRef.current) {
+          if (audioBufferQueue.length < 2) {
+            try {
+              const chunk = chunks[fetchIndex++];
+              const base64 = await generateSpeech(chunk);
+              if (isAbortedRef.current) return;
+              const buffer = await decodeAudioData(decode(base64), ctx);
+              audioBufferQueue.push(buffer);
+            } catch (e) { console.error("TTS Error:", e); }
+          } else {
+            await new Promise(r => setTimeout(r, 200));
+          }
+        }
+      };
+
+      fetchWorker();
+
+      // Hilo de reproducción
+      while (playIndex < chunks.length && !isAbortedRef.current) {
+        if (audioBufferQueue.length > 0) {
+          setIsBuffering(false);
+          const buffer = audioBufferQueue.shift()!;
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.playbackRate.value = playbackRateRef.current;
+          source.connect(ctx.destination);
+          
+          const startTime = Math.max(nextStartTimeRef.current, ctx.currentTime);
+          source.start(startTime);
+          activeSourcesRef.current.push(source);
+          
+          const duration = buffer.duration / playbackRateRef.current;
+          nextStartTimeRef.current = startTime + duration;
+          playIndex++;
+          
+          // Esperamos un poco menos del final para que no haya huecos (gapless)
+          await new Promise(r => setTimeout(r, (duration * 1000) - 30));
         } else {
-          await new Promise(r => setTimeout(r, 300));
+          setIsBuffering(true);
+          await new Promise(r => setTimeout(r, 150));
         }
       }
-    };
-
-    fetchWorker();
-
-    while (playIndex < chunks.length && !isAbortedRef.current) {
-      if (audioBufferQueue.length > 0) {
-        setIsBuffering(false);
-        const buffer = audioBufferQueue.shift()!;
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        source.playbackRate.value = playbackRateRef.current;
-        source.connect(ctx.destination);
-        const startTime = Math.max(nextStartTimeRef.current, ctx.currentTime);
-        source.start(startTime);
-        activeSourcesRef.current.push(source);
-        const duration = buffer.duration / playbackRateRef.current;
-        nextStartTimeRef.current = startTime + duration;
-        playIndex++;
-        await new Promise(r => setTimeout(r, (duration * 1000) - 40));
-      } else {
-        setIsBuffering(true);
-        await new Promise(r => setTimeout(r, 200));
-      }
+      
+      if (playIndex >= chunks.length && !isAbortedRef.current) setIsReading(false);
+    } catch (err) {
+      console.error("Audio failed:", err);
+      setIsReading(false);
     }
-    if (playIndex >= chunks.length && !isAbortedRef.current) setIsReading(false);
   };
 
   const currentTheme = THEMES[settings.theme];
@@ -179,14 +190,21 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
     <div className={`flex flex-col min-h-[70vh] rounded-[2rem] md:rounded-[3.5rem] overflow-hidden shadow-xl border border-slate-100 transition-colors duration-500 ${currentTheme.bg} animate-in zoom-in-95`}>
       <div className={`p-4 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-8 ${currentTheme.card} border-b`}>
         <div className="flex items-center gap-4 w-full md:w-auto">
-          <button onClick={handlePlayAudio} className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl shadow-md flex items-center justify-center transition-all ${isReading ? 'bg-red-500 text-white animate-pulse' : 'bg-blue-600 text-white hover:scale-105'}`}>
-            {isReading ? <VolumeX className="w-7 h-7" /> : <Play className="w-7 h-7 fill-current ml-1" />}
+          <button 
+            onClick={handlePlayAudio} 
+            className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl shadow-md flex items-center justify-center transition-all ${isReading ? 'bg-red-500 text-white animate-pulse' : 'bg-blue-600 text-white hover:scale-105 active:scale-90'}`}
+          >
+            {isReading ? (
+              isBuffering ? <Loader2 className="w-7 h-7 animate-spin" /> : <VolumeX className="w-7 h-7" />
+            ) : (
+              <Play className="w-7 h-7 fill-current ml-1" />
+            )}
           </button>
           <div className="flex flex-col">
             <span className={`text-sm md:text-base font-black uppercase tracking-wider ${currentTheme.text}`}>
               {isReading ? 'Escuchando...' : 'Modo Narrador'}
             </span>
-            {isReading && <div className="text-[10px] text-blue-400 font-bold">Voz Fluida Activa</div>}
+            {isReading && <div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">Voz Mágica</div>}
           </div>
         </div>
 
@@ -198,7 +216,7 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
 
         <div className="flex gap-2 w-full md:w-auto justify-end">
           {Object.entries(THEMES).map(([k, t]) => (
-            <button key={k} onClick={() => setSettings({...settings, theme: k as any})} className={`w-10 h-10 rounded-xl border-2 transition-all flex items-center justify-center ${settings.theme === k ? 'border-blue-500 bg-blue-50' : 'border-transparent opacity-60 hover:opacity-100'} ${t.bg}`}>
+            <button key={k} onClick={() => setSettings({...settings, theme: k as any})} className={`w-10 h-10 rounded-xl border-2 transition-all flex items-center justify-center ${settings.theme === k ? 'border-blue-500 bg-blue-50 shadow-inner' : 'border-transparent opacity-60 hover:opacity-100'} ${t.bg}`}>
               {React.cloneElement(t.icon as any, { className: "w-4 h-4" })}
             </button>
           ))}
