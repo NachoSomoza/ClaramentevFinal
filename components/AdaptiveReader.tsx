@@ -57,20 +57,28 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
     setIsBuffering(false);
   };
 
-  // FUNCIÓN CRÍTICA: Se ejecuta al hacer clic en "¡A leer!"
   const handleFinalStep = async () => {
-    const ctx = getSharedAudioContext();
-    if (ctx.state === 'suspended') {
-      await ctx.resume();
+    try {
+      const ctx = getSharedAudioContext();
+      // En iOS, el resume() puede fallar si no es el hilo exacto de interacción
+      // Usamos un timeout corto para no bloquear la UI si el audio falla
+      await Promise.race([
+        ctx.resume(),
+        new Promise(resolve => setTimeout(resolve, 500))
+      ]);
+
+      const b = ctx.createBuffer(1, 1, 22050);
+      const s = ctx.createBufferSource();
+      s.buffer = b;
+      s.connect(ctx.destination);
+      s.start(0);
+    } catch (e) {
+      console.warn("Audio Context could not be initialized, but proceeding to read mode.", e);
+    } finally {
+      // SIEMPRE cambiamos de paso, pase lo que pase con el audio
+      setStep('READ');
+      window.scrollTo(0, 0);
     }
-    // "Poc" silencioso para asegurar el canal en iOS
-    const b = ctx.createBuffer(1, 1, 22050);
-    const s = ctx.createBufferSource();
-    s.buffer = b;
-    s.connect(ctx.destination);
-    s.start(0);
-    
-    setStep('READ');
   };
 
   const handlePlayAudio = async () => {
@@ -145,7 +153,7 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
 
   if (step === 'FONT') {
     return (
-      <div className="max-w-4xl mx-auto py-6 md:py-12 text-center px-4 animate-in fade-in zoom-in-95">
+      <div className="max-w-4xl mx-auto py-6 md:py-12 text-center px-4">
         <h2 className="text-3xl md:text-5xl font-black mb-8 text-slate-800 tracking-tight">¿Qué letra prefieres?</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-8">
           {['standard', 'dyslexic', 'rounded'].map((f) => (
@@ -156,14 +164,14 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
             </button>
           ))}
         </div>
-        <button onClick={() => setStep('SPACING')} className="mt-12 px-10 py-5 bg-blue-600 text-white rounded-full font-black text-xl flex items-center gap-3 mx-auto shadow-lg hover:scale-105 active:scale-95 transition-all">Siguiente <ArrowRight className="w-6 h-6" /></button>
+        <button onClick={() => { setStep('SPACING'); window.scrollTo(0,0); }} className="mt-12 px-10 py-5 bg-blue-600 text-white rounded-full font-black text-xl flex items-center gap-3 mx-auto shadow-lg hover:scale-105 active:scale-95 transition-all">Siguiente <ArrowRight className="w-6 h-6" /></button>
       </div>
     );
   }
 
   if (step === 'SPACING') {
     return (
-      <div className="max-w-4xl mx-auto py-6 md:py-12 text-center px-4 animate-in fade-in zoom-in-95">
+      <div className="max-w-4xl mx-auto py-6 md:py-12 text-center px-4">
         <h2 className="text-3xl md:text-5xl font-black mb-8 text-slate-800 tracking-tight">Personaliza tu espacio</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 mb-12">
           <div className="bg-white p-8 rounded-[2.5rem] border-2 border-slate-50 shadow-sm">
@@ -188,7 +196,7 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-8 items-center">
-           <button onClick={() => setStep('FONT')} className="px-8 py-4 text-slate-400 font-black text-lg">Volver</button>
+           <button onClick={() => { setStep('FONT'); window.scrollTo(0,0); }} className="px-8 py-4 text-slate-400 font-black text-lg">Volver</button>
            <div className="flex flex-col items-center gap-2">
              <button onClick={handleFinalStep} className="px-12 py-5 bg-teal-600 text-white rounded-full font-black text-xl flex items-center gap-3 shadow-lg hover:scale-105 active:scale-95 transition-all">
                ¡A leer! <Check className="w-6 h-6" />
@@ -201,7 +209,7 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
   }
 
   return (
-    <div className={`flex flex-col min-h-[70vh] rounded-[2rem] md:rounded-[3.5rem] overflow-hidden shadow-xl border border-slate-100 transition-colors duration-500 ${currentTheme.bg} animate-in zoom-in-95`}>
+    <div className={`flex flex-col min-h-[70vh] rounded-[2rem] md:rounded-[3.5rem] overflow-hidden shadow-xl border border-slate-100 transition-colors duration-500 ${currentTheme.bg}`}>
       <div className={`p-4 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-8 ${currentTheme.card} border-b`}>
         <div className="flex items-center gap-4 w-full md:w-auto">
           <button 
@@ -234,11 +242,11 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
               {React.cloneElement(t.icon as any, { className: "w-4 h-4" })}
             </button>
           ))}
-          <button onClick={() => setStep('FONT')} className="ml-2 p-2 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all"><Settings className="w-5 h-5 text-slate-600" /></button>
+          <button onClick={() => { setStep('FONT'); window.scrollTo(0,0); }} className="ml-2 p-2 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all"><Settings className="w-5 h-5 text-slate-600" /></button>
         </div>
       </div>
 
-      <div className={`flex-1 p-6 md:p-16 lg:p-24 overflow-y-auto custom-scrollbar ${getFontClass(settings.fontFamily)}`} style={{ fontSize: settings.fontSize, lineHeight: settings.lineHeight, letterSpacing: settings.letterSpacing }}>
+      <div className={`flex-1 p-6 md:p-16 lg:p-24 overflow-y-auto custom-scrollbar ${getFontClass(settings.fontFamily)}`} style={{ fontSize: settings.fontSize, lineHeight: settings.lineHeight, letterSpacing: settings.letterSpacing, minHeight: '300px' }}>
         <div className="max-w-4xl mx-auto">
           <p className={`whitespace-pre-wrap transition-colors duration-500 ${currentTheme.text} font-medium`}>{text}</p>
         </div>
