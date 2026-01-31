@@ -28,7 +28,7 @@ const App: React.FC = () => {
       
       case 'SELECTION':
         return (
-          <div className="max-w-5xl mx-auto py-8 px-4 animate-in fade-in duration-700">
+          <div className="max-w-5xl mx-auto py-8 px-4">
             <div className="text-center mb-12">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-100 text-blue-700 font-bold text-xs uppercase tracking-widest mb-4 shadow-sm">
                 <Sparkles className="w-4 h-4" />
