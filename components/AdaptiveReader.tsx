@@ -57,28 +57,33 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
     setIsBuffering(false);
   };
 
-  const handleFinalStep = async () => {
-    try {
-      const ctx = getSharedAudioContext();
-      // En iOS, el resume() puede fallar si no es el hilo exacto de interacción
-      // Usamos un timeout corto para no bloquear la UI si el audio falla
-      await Promise.race([
-        ctx.resume(),
-        new Promise(resolve => setTimeout(resolve, 500))
-      ]);
+  /**
+   * CRÍTICO PARA IPHONE:
+   * Cambiamos el paso inmediatamente de forma síncrona.
+   * El audio se intenta "despertar" en una tarea separada para no bloquear el renderizado.
+   */
+  const handleFinalStep = () => {
+    // 1. Cambiar de pantalla primero para que el usuario vea el texto
+    setStep('READ');
+    window.scrollTo(0, 0);
 
-      const b = ctx.createBuffer(1, 1, 22050);
-      const s = ctx.createBufferSource();
-      s.buffer = b;
-      s.connect(ctx.destination);
-      s.start(0);
-    } catch (e) {
-      console.warn("Audio Context could not be initialized, but proceeding to read mode.", e);
-    } finally {
-      // SIEMPRE cambiamos de paso, pase lo que pase con el audio
-      setStep('READ');
-      window.scrollTo(0, 0);
-    }
+    // 2. Tarea de audio en segundo plano (no bloqueante)
+    setTimeout(async () => {
+      try {
+        const ctx = getSharedAudioContext();
+        if (ctx.state === 'suspended') {
+          await ctx.resume();
+        }
+        // Buffer de silencio para "engañar" a iOS
+        const b = ctx.createBuffer(1, 1, 22050);
+        const s = ctx.createBufferSource();
+        s.buffer = b;
+        s.connect(ctx.destination);
+        s.start(0);
+      } catch (e) {
+        console.warn("No se pudo pre-activar el audio, se activará al dar Play.", e);
+      }
+    }, 0);
   };
 
   const handlePlayAudio = async () => {
@@ -148,7 +153,7 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
     }
   };
 
-  const currentTheme = THEMES[settings.theme];
+  const currentTheme = THEMES[settings.theme] || THEMES.light;
   const getFontClass = (f: string) => f === 'dyslexic' ? 'font-dyslexic' : f === 'rounded' ? 'font-rounded' : 'font-sans';
 
   if (step === 'FONT') {
@@ -198,7 +203,7 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
         <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-8 items-center">
            <button onClick={() => { setStep('FONT'); window.scrollTo(0,0); }} className="px-8 py-4 text-slate-400 font-black text-lg">Volver</button>
            <div className="flex flex-col items-center gap-2">
-             <button onClick={handleFinalStep} className="px-12 py-5 bg-teal-600 text-white rounded-full font-black text-xl flex items-center gap-3 shadow-lg hover:scale-105 active:scale-95 transition-all">
+             <button onClick={handleFinalStep} className="px-12 py-5 bg-teal-600 text-white rounded-full font-black text-xl flex items-center gap-3 shadow-lg active:scale-95 transition-all">
                ¡A leer! <Check className="w-6 h-6" />
              </button>
              <span className="text-[10px] text-teal-600 font-bold uppercase tracking-widest flex items-center gap-1"><Volume2 className="w-3 h-3" /> Activa el audio al tocar</span>
@@ -214,7 +219,7 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
         <div className="flex items-center gap-4 w-full md:w-auto">
           <button 
             onClick={handlePlayAudio} 
-            className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl shadow-md flex items-center justify-center transition-all ${isReading ? 'bg-red-500 text-white animate-pulse' : 'bg-blue-600 text-white hover:scale-105 active:scale-90'}`}
+            className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl shadow-md flex items-center justify-center transition-all ${isReading ? 'bg-red-500 text-white' : 'bg-blue-600 text-white active:scale-90'}`}
           >
             {isReading ? (
               isBuffering ? <Loader2 className="w-7 h-7 animate-spin" /> : <VolumeX className="w-7 h-7" />
@@ -246,7 +251,7 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
         </div>
       </div>
 
-      <div className={`flex-1 p-6 md:p-16 lg:p-24 overflow-y-auto custom-scrollbar ${getFontClass(settings.fontFamily)}`} style={{ fontSize: settings.fontSize, lineHeight: settings.lineHeight, letterSpacing: settings.letterSpacing, minHeight: '300px' }}>
+      <div className={`flex-1 p-6 md:p-16 lg:p-24 overflow-y-auto custom-scrollbar ${getFontClass(settings.fontFamily)}`} style={{ fontSize: settings.fontSize, lineHeight: settings.lineHeight, letterSpacing: settings.letterSpacing, minHeight: '400px' }}>
         <div className="max-w-4xl mx-auto">
           <p className={`whitespace-pre-wrap transition-colors duration-500 ${currentTheme.text} font-medium`}>{text}</p>
         </div>
