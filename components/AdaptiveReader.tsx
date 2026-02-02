@@ -10,11 +10,12 @@ import {
   FastForward,
   Play,
   Loader2,
-  Volume2
+  Volume2,
+  AlertCircle
 } from 'lucide-react';
 import { ReaderSettings } from '../types';
 import { THEMES } from '../constants';
-import { generateSpeech, decode, decodeAudioData, getSharedAudioContext } from '../services/geminiService';
+import { generateSpeech, decode, decodeAudioData, getSharedAudioContext, unlockAudioForiOS } from '../services/geminiService';
 
 interface AdaptiveReaderProps { text: string; }
 
@@ -45,7 +46,9 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
   useEffect(() => { playbackRateRef.current = playbackSpeed; }, [playbackSpeed]);
   
   useEffect(() => {
-    chunksRef.current = text.match(/[^.!?\n]+[.!?\n]*/g)?.map(s => s.trim()).filter(s => s.length > 2) || [text];
+    if (text) {
+      chunksRef.current = text.match(/[^.!?\n]+[.!?\n]*/g)?.map(s => s.trim()).filter(s => s.length > 2) || [text];
+    }
     return () => stopAudio();
   }, [text]);
 
@@ -57,36 +60,14 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
     setIsBuffering(false);
   };
 
-  /**
-   * CRÍTICO PARA IPHONE:
-   * Cambiamos el paso inmediatamente de forma síncrona.
-   * El audio se intenta "despertar" en una tarea separada para no bloquear el renderizado.
-   */
   const handleFinalStep = () => {
-    // 1. Cambiar de pantalla primero para que el usuario vea el texto
+    unlockAudioForiOS().catch(err => console.error("Fallo al desbloquear audio:", err));
     setStep('READ');
     window.scrollTo(0, 0);
-
-    // 2. Tarea de audio en segundo plano (no bloqueante)
-    setTimeout(async () => {
-      try {
-        const ctx = getSharedAudioContext();
-        if (ctx.state === 'suspended') {
-          await ctx.resume();
-        }
-        // Buffer de silencio para "engañar" a iOS
-        const b = ctx.createBuffer(1, 1, 22050);
-        const s = ctx.createBufferSource();
-        s.buffer = b;
-        s.connect(ctx.destination);
-        s.start(0);
-      } catch (e) {
-        console.warn("No se pudo pre-activar el audio, se activará al dar Play.", e);
-      }
-    }, 0);
   };
 
   const handlePlayAudio = async () => {
+    if (!text || text.trim().length === 0) return;
     if (isReading) { stopAudio(); return; }
     
     try {
@@ -206,7 +187,7 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
              <button onClick={handleFinalStep} className="px-12 py-5 bg-teal-600 text-white rounded-full font-black text-xl flex items-center gap-3 shadow-lg active:scale-95 transition-all">
                ¡A leer! <Check className="w-6 h-6" />
              </button>
-             <span className="text-[10px] text-teal-600 font-bold uppercase tracking-widest flex items-center gap-1"><Volume2 className="w-3 h-3" /> Activa el audio al tocar</span>
+             <span className="text-[10px] text-teal-600 font-bold uppercase tracking-widest flex items-center gap-1"><Volume2 className="w-3 h-3" /> Audio listo para tocar</span>
            </div>
         </div>
       </div>
@@ -253,7 +234,15 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
 
       <div className={`flex-1 p-6 md:p-16 lg:p-24 overflow-y-auto custom-scrollbar ${getFontClass(settings.fontFamily)}`} style={{ fontSize: settings.fontSize, lineHeight: settings.lineHeight, letterSpacing: settings.letterSpacing, minHeight: '400px' }}>
         <div className="max-w-4xl mx-auto">
-          <p className={`whitespace-pre-wrap transition-colors duration-500 ${currentTheme.text} font-medium`}>{text}</p>
+          {(!text || text.trim().length < 2) ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-300 gap-4">
+              <AlertCircle className="w-16 h-16" />
+              <p className="text-xl font-black uppercase tracking-widest">No hay texto para mostrar</p>
+              <p className="text-sm font-medium">Prueba subiendo el archivo de nuevo</p>
+            </div>
+          ) : (
+            <p className={`whitespace-pre-wrap transition-colors duration-500 ${currentTheme.text} font-medium`}>{text}</p>
+          )}
         </div>
       </div>
     </div>
