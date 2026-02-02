@@ -1,5 +1,6 @@
+
 import React, { useRef, useState } from 'react';
-import { Upload, File, Loader2, AlertCircle, Image as ImageIcon, BookOpen } from 'lucide-react';
+import { Upload, File, Loader2, AlertCircle, Image as ImageIcon, BookOpen, X, ShieldCheck } from 'lucide-react';
 import { extractTextFromMedia } from '../services/geminiService';
 
 interface UploadModuleProps {
@@ -10,9 +11,12 @@ export const UploadModule: React.FC<UploadModuleProps> = ({ onTextExtracted }) =
   const [isUploading, setIsUploading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showLegal, setShowLegal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!acceptedTerms) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -58,8 +62,26 @@ export const UploadModule: React.FC<UploadModuleProps> = ({ onTextExtracted }) =
         <p className="text-xl text-gray-500">Sube un PDF o una foto de tu libro favorito.</p>
       </div>
 
+      <div className="mb-8 bg-white/50 p-6 rounded-[2rem] border border-blue-50">
+        <label className="flex items-start gap-4 cursor-pointer group">
+          <div className="relative flex items-center mt-1">
+            <input 
+              type="checkbox" 
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="peer h-6 w-6 cursor-pointer appearance-none rounded-md border-2 border-blue-200 transition-all checked:border-blue-500 checked:bg-blue-500"
+            />
+            <ShieldCheck className="absolute w-4 h-4 text-white left-1 opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
+          </div>
+          <span className="text-sm font-medium text-slate-600 leading-relaxed">
+            He leído y acepto el <button onClick={() => setShowLegal(true)} className="text-blue-600 font-bold underline hover:text-blue-700">Aviso Legal y la Política de Privacidad</button>. Entiendo que Claramente es una herramienta de apoyo pedagógico y no un tratamiento médico.
+          </span>
+        </label>
+      </div>
+
       <div 
         className={`relative border-4 border-dashed rounded-[3.5rem] p-16 text-center transition-all duration-500 ${
+          !acceptedTerms ? 'opacity-40 grayscale cursor-not-allowed bg-slate-50' :
           isUploading ? 'border-blue-400 bg-blue-50 shadow-inner' : 'border-gray-200 hover:border-blue-400 hover:bg-blue-50/30'
         }`}
       >
@@ -68,8 +90,8 @@ export const UploadModule: React.FC<UploadModuleProps> = ({ onTextExtracted }) =
           ref={fileInputRef}
           onChange={handleFileChange}
           accept=".pdf,image/*"
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          disabled={isUploading}
+          className={`absolute inset-0 w-full h-full opacity-0 ${acceptedTerms ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+          disabled={isUploading || !acceptedTerms}
         />
         
         <div className="flex flex-col items-center">
@@ -84,8 +106,8 @@ export const UploadModule: React.FC<UploadModuleProps> = ({ onTextExtracted }) =
             </>
           ) : (
             <>
-              <div className="w-28 h-28 bg-blue-100 rounded-[2.5rem] flex items-center justify-center mb-8 shadow-sm transition-transform hover:rotate-6">
-                <Upload className="w-14 h-14 text-blue-600" />
+              <div className={`w-28 h-28 ${acceptedTerms ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-400'} rounded-[2.5rem] flex items-center justify-center mb-8 shadow-sm transition-transform hover:rotate-6`}>
+                <Upload className="w-14 h-14" />
               </div>
               <p className="text-3xl font-black text-gray-800 mb-3">Toca para elegir</p>
               <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">PDF o Fotos</p>
@@ -93,6 +115,64 @@ export const UploadModule: React.FC<UploadModuleProps> = ({ onTextExtracted }) =
           )}
         </div>
       </div>
+
+      {showLegal && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 sm:p-8">
+          <div className="bg-white w-full max-w-3xl max-h-[85vh] rounded-[3rem] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-blue-50/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500 text-white rounded-xl"><ShieldCheck className="w-6 h-6" /></div>
+                <h3 className="text-2xl font-black text-slate-800 tracking-tight">Compromiso Claramente</h3>
+              </div>
+              <button onClick={() => setShowLegal(false)} className="p-2 hover:bg-white rounded-full transition-colors"><X className="w-6 h-6 text-slate-400" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-8 md:p-12 custom-scrollbar text-slate-700 space-y-8 font-medium leading-relaxed">
+              <section>
+                <h4 className="text-xl font-black text-blue-600 mb-4">1. Naturaleza de la Herramienta</h4>
+                <p>Claramente es una plataforma tecnológica de apoyo diseñada para mejorar la accesibilidad a la lectura y fomentar la comprensión de textos mediante Inteligencia Artificial.</p>
+                <p className="mt-2 font-bold">No es un dispositivo médico: El sistema no proporciona diagnósticos clínicos ni constituye un tratamiento para la dislexia, el TDAH o cualquier otra dificultad del aprendizaje.</p>
+                <p className="mt-2 text-sm text-slate-500">Supervisión Profesional: Esta herramienta debe utilizarse como un complemento y no como un sustituto de la terapia profesional. Se recomienda que el uso sea supervisado por psicopedagogos, docentes o adultos responsables.</p>
+              </section>
+
+              <section>
+                <h4 className="text-xl font-black text-blue-600 mb-4">2. Uso de IA y Precisión</h4>
+                <p>El usuario reconoce que las funciones de resumen, explicación, generación de cómics y videos son realizadas de forma automatizada por Inteligencia Artificial.</p>
+                <p className="mt-2 italic">Interpretación: La IA puede generar interpretaciones inexactas o imprecisiones. Los cómics y videos son recreaciones artísticas motivacionales.</p>
+              </section>
+
+              <section>
+                <h4 className="text-xl font-black text-blue-600 mb-4">3. Seguridad y Ética</h4>
+                <p>Filtros de Seguridad: El sistema cuenta con restricciones para evitar contenido violento o inapropiado. Si un texto es sensible, la IA podrá negarse a procesarlo.</p>
+                <p className="mt-2 font-bold text-teal-600">Supervisión del Adulto: El chat y la interacción deben ser monitoreados siempre por un adulto responsable.</p>
+              </section>
+
+              <section>
+                <h4 className="text-xl font-black text-blue-600 mb-4">4. Privacidad (Ley 25.326)</h4>
+                <ul className="list-disc pl-5 space-y-2">
+                  <li><span className="font-bold">No Almacenamiento Permanente:</span> Tus archivos se eliminan en un plazo máximo de 48 horas tras su procesamiento.</li>
+                  <li><span className="font-bold">No Entrenamiento:</span> Tus datos no se usan para entrenar modelos públicos ni se comparten con fines comerciales.</li>
+                  <li><span className="font-bold">Privacidad de Menores:</span> No recolectamos datos biométricos. Por favor, no subas imágenes con rostros de menores.</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 className="text-xl font-black text-blue-600 mb-4">5. Responsabilidad</h4>
+                <p>Claramente no se hace responsable por el uso indebido de material protegido por derechos de autor. El usuario declara poseer los derechos para uso privado o educativo.</p>
+              </section>
+
+              <div className="bg-blue-50 p-6 rounded-2xl border-2 border-blue-100 flex flex-col items-center text-center gap-4">
+                 <p className="font-black text-blue-800">¿Deseas aceptar estos términos y empezar a leer?</p>
+                 <button 
+                  onClick={() => { setAcceptedTerms(true); setShowLegal(false); }}
+                  className="px-10 py-4 bg-blue-600 text-white font-black rounded-full shadow-lg hover:bg-blue-700 transition-all active:scale-95"
+                 >
+                   He leído y acepto todo
+                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="mt-10 p-8 bg-red-50 border-4 border-red-100 rounded-[2.5rem] flex items-start gap-6 text-red-700 shadow-xl animate-in slide-in-from-bottom-4">
