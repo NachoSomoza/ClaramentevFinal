@@ -10,7 +10,6 @@ import {
   FastForward,
   Play,
   Loader2,
-  Volume2,
   AlertCircle
 } from 'lucide-react';
 import { ReaderSettings } from '../types';
@@ -144,13 +143,13 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-8">
           {['standard', 'dyslexic', 'rounded'].map((f) => (
             <button key={f} onClick={() => setSettings({ ...settings, fontFamily: f as any })}
-              className={`p-6 md:p-10 rounded-3xl border-4 transition-all shadow-sm ${settings.fontFamily === f ? 'border-blue-500 bg-blue-50' : 'border-white bg-white hover:border-blue-200'}`}>
+              className={`p-6 md:p-10 rounded-3xl border-4 transition-all shadow-sm ${settings.fontFamily === f ? 'border-indigo-500 bg-indigo-50' : 'border-white bg-white hover:border-indigo-200'}`}>
               <h3 className={`text-2xl md:text-4xl mb-2 ${getFontClass(f)} text-slate-900`}>{f === 'standard' ? 'Normal' : f === 'dyslexic' ? 'Especial' : 'Redonda'}</h3>
-              <p className="text-slate-400 text-sm font-medium">Lectura fácil</p>
+              <p className="text-slate-400 text-sm font-medium uppercase tracking-widest">Lectura fácil</p>
             </button>
           ))}
         </div>
-        <button onClick={() => { setStep('SPACING'); window.scrollTo(0,0); }} className="mt-12 px-10 py-5 bg-blue-600 text-white rounded-full font-black text-xl flex items-center gap-3 mx-auto shadow-lg hover:scale-105 active:scale-95 transition-all">Siguiente <ArrowRight className="w-6 h-6" /></button>
+        <button onClick={() => { setStep('SPACING'); window.scrollTo(0,0); }} className="mt-12 px-10 py-5 bg-indigo-600 text-white rounded-full font-black text-xl flex items-center gap-3 mx-auto shadow-lg hover:scale-105 active:scale-95 transition-all shadow-indigo-200">Siguiente <ArrowRight className="w-6 h-6" /></button>
       </div>
     );
   }
@@ -161,20 +160,20 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
         <h2 className="text-3xl md:text-5xl font-black mb-8 text-slate-800 tracking-tight">Personaliza tu espacio</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 mb-12">
           <div className="bg-white p-8 rounded-[2.5rem] border-2 border-slate-50 shadow-sm">
-            <h3 className="text-2xl font-black mb-8 flex items-center gap-3 justify-center text-blue-600 uppercase tracking-tighter"><AlignJustify className="w-6 h-6" /> Líneas</h3>
+            <h3 className="text-2xl font-black mb-8 flex items-center gap-3 justify-center text-indigo-600 uppercase tracking-tighter"><AlignJustify className="w-6 h-6" /> Líneas</h3>
             <div className="flex flex-col gap-4">
               {[1.4, 2.0, 2.8].map(v => (
-                <button key={v} onClick={() => setSettings({...settings, lineHeight: v})} className={`py-4 md:py-6 rounded-2xl border-4 text-lg font-bold transition-all ${settings.lineHeight === v ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-50 text-slate-500 hover:border-blue-100 bg-white'}`}>
+                <button key={v} onClick={() => setSettings({...settings, lineHeight: v})} className={`py-4 md:py-6 rounded-2xl border-4 text-lg font-bold transition-all ${settings.lineHeight === v ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-50 text-slate-500 hover:border-indigo-100 bg-white'}`}>
                   {v === 1.4 ? 'Juntitas' : v === 2.0 ? 'Normal' : 'Muy separadas'}
                 </button>
               ))}
             </div>
           </div>
           <div className="bg-white p-8 rounded-[2.5rem] border-2 border-slate-50 shadow-sm">
-            <h3 className="text-2xl font-black mb-8 flex items-center gap-3 justify-center text-teal-600 uppercase tracking-tighter"><Type className="w-6 h-6" /> Letras</h3>
+            <h3 className="text-2xl font-black mb-8 flex items-center gap-3 justify-center text-indigo-500 uppercase tracking-tighter"><Type className="w-6 h-6" /> Letras</h3>
             <div className="flex flex-col gap-4">
               {[0, 2, 5].map(v => (
-                <button key={v} onClick={() => setSettings({...settings, letterSpacing: v})} className={`py-4 md:py-6 rounded-2xl border-4 text-lg font-bold transition-all ${settings.letterSpacing === v ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-50 text-slate-500 hover:border-teal-100 bg-white'}`}>
+                <button key={v} onClick={() => setSettings({...settings, letterSpacing: v})} className={`py-4 md:py-6 rounded-2xl border-4 text-lg font-bold transition-all ${settings.letterSpacing === v ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-50 text-slate-500 hover:border-indigo-100 bg-white'}`}>
                    {v === 0 ? 'Cerca' : v === 2 ? 'Normal' : 'Lejos'}
                 </button>
               ))}
@@ -183,7 +182,7 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
         </div>
         <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-8 items-center">
            <button onClick={() => { setStep('FONT'); window.scrollTo(0,0); }} className="px-8 py-4 text-slate-400 font-black text-lg">Volver</button>
-           <button onClick={handleFinalStep} className="px-12 py-5 bg-teal-600 text-white rounded-full font-black text-xl flex items-center gap-3 shadow-lg active:scale-95 transition-all">
+           <button onClick={handleFinalStep} className="px-12 py-5 bg-indigo-600 text-white rounded-full font-black text-xl flex items-center gap-3 shadow-lg active:scale-95 transition-all shadow-indigo-200">
              ¡A leer! <Check className="w-6 h-6" />
            </button>
         </div>
@@ -192,12 +191,12 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
   }
 
   return (
-    <div className={`flex flex-col min-h-[70vh] rounded-[2rem] md:rounded-[3.5rem] overflow-hidden shadow-xl border border-slate-100 transition-colors duration-500 ${currentTheme.bg}`}>
-      <div className={`p-4 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-8 ${currentTheme.card} border-b`}>
+    <div className={`flex flex-col min-h-[70vh] rounded-[2rem] md:rounded-[3.5rem] overflow-hidden shadow-2xl border border-indigo-100 transition-colors duration-500 ${currentTheme.bg}`}>
+      <div className={`p-4 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-8 ${currentTheme.card} border-b border-indigo-50`}>
         <div className="flex items-center gap-4 w-full md:w-auto">
           <button 
             onClick={handlePlayAudio} 
-            className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl shadow-md flex items-center justify-center transition-all ${isReading ? 'bg-red-500 text-white' : 'bg-blue-600 text-white active:scale-90'}`}
+            className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl shadow-md flex items-center justify-center transition-all ${isReading ? 'bg-rose-500 text-white' : 'bg-indigo-600 text-white active:scale-90 shadow-indigo-200'}`}
           >
             {isReading ? (
               isBuffering ? <Loader2 className="w-7 h-7 animate-spin" /> : <VolumeX className="w-7 h-7" />
@@ -209,19 +208,19 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
             <span className={`text-sm md:text-base font-black uppercase tracking-wider ${currentTheme.text}`}>
               {isReading ? 'Escuchando...' : 'Modo Narrador'}
             </span>
-            {isReading && <div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">Voz Mágica</div>}
+            {isReading && <div className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest">Voz Mágica</div>}
           </div>
         </div>
 
-        <div className="flex items-center gap-4 w-full md:w-1/3 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
-          <FastForward className="w-4 h-4 text-slate-300" />
-          <input type="range" min="0.5" max="1.8" step="0.1" value={playbackSpeed} onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))} className="flex-1 h-2 bg-blue-100 rounded-full appearance-none cursor-pointer accent-blue-600" />
-          <span className="text-xs font-black text-blue-600 w-8">{playbackSpeed.toFixed(1)}x</span>
+        <div className="flex items-center gap-4 w-full md:w-1/3 bg-indigo-50/30 p-3 rounded-2xl border border-indigo-50">
+          <FastForward className="w-4 h-4 text-indigo-300" />
+          <input type="range" min="0.5" max="1.8" step="0.1" value={playbackSpeed} onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))} className="flex-1 h-2 bg-indigo-100 rounded-full appearance-none cursor-pointer accent-indigo-600" />
+          <span className="text-xs font-black text-indigo-600 w-8">{playbackSpeed.toFixed(1)}x</span>
         </div>
 
         <div className="flex gap-2 w-full md:w-auto justify-end">
           {Object.entries(THEMES).map(([k, t]) => (
-            <button key={k} onClick={() => setSettings({...settings, theme: k as any})} className={`w-10 h-10 rounded-xl border-2 transition-all flex items-center justify-center ${settings.theme === k ? 'border-blue-500 bg-blue-50 shadow-inner' : 'border-transparent opacity-60 hover:opacity-100'} ${t.bg}`}>
+            <button key={k} onClick={() => setSettings({...settings, theme: k as any})} className={`w-10 h-10 rounded-xl border-2 transition-all flex items-center justify-center ${settings.theme === k ? 'border-indigo-500 bg-indigo-50 shadow-inner' : 'border-transparent opacity-60 hover:opacity-100'} ${t.bg}`}>
               {React.cloneElement(t.icon as any, { className: "w-4 h-4" })}
             </button>
           ))}
@@ -229,7 +228,7 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
         </div>
       </div>
 
-      <div className={`flex-1 p-6 md:p-16 lg:p-24 overflow-y-auto custom-scrollbar ${getFontClass(settings.fontFamily)}`} style={{ fontSize: settings.fontSize, lineHeight: settings.lineHeight, letterSpacing: settings.letterSpacing, minHeight: '400px' }}>
+      <div className={`flex-1 p-6 md:p-16 lg:p-24 overflow-y-auto custom-scrollbar ${getFontClass(settings.fontFamily)} bg-opacity-100`} style={{ fontSize: settings.fontSize, lineHeight: settings.lineHeight, letterSpacing: settings.letterSpacing, minHeight: '500px' }}>
         <div className="max-w-4xl mx-auto">
           {(!text || text.trim().length < 5) ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-4">
@@ -238,7 +237,7 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
               <p className="text-sm font-medium">Hubo un problema al leer el documento. Intenta subirlo de nuevo.</p>
             </div>
           ) : (
-            <p className={`whitespace-pre-wrap transition-colors duration-500 font-medium ${currentTheme.text}`} style={{ color: settings.theme === 'dark' ? '#f8fafc' : settings.theme === 'sepia' ? '#5B4636' : settings.theme === 'contrast' ? '#facc15' : '#1e293b' }}>
+            <p className={`whitespace-pre-wrap transition-colors duration-500 font-medium ${currentTheme.text} leading-relaxed block`}>
               {text}
             </p>
           )}
