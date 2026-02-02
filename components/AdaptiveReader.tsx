@@ -145,7 +145,7 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
           {['standard', 'dyslexic', 'rounded'].map((f) => (
             <button key={f} onClick={() => setSettings({ ...settings, fontFamily: f as any })}
               className={`p-6 md:p-10 rounded-3xl border-4 transition-all shadow-sm ${settings.fontFamily === f ? 'border-blue-500 bg-blue-50' : 'border-white bg-white hover:border-blue-200'}`}>
-              <h3 className={`text-2xl md:text-4xl mb-2 ${getFontClass(f)}`}>{f === 'standard' ? 'Normal' : f === 'dyslexic' ? 'Especial' : 'Redonda'}</h3>
+              <h3 className={`text-2xl md:text-4xl mb-2 ${getFontClass(f)} text-slate-900`}>{f === 'standard' ? 'Normal' : f === 'dyslexic' ? 'Especial' : 'Redonda'}</h3>
               <p className="text-slate-400 text-sm font-medium">Lectura fácil</p>
             </button>
           ))}
@@ -183,12 +183,9 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
         </div>
         <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-8 items-center">
            <button onClick={() => { setStep('FONT'); window.scrollTo(0,0); }} className="px-8 py-4 text-slate-400 font-black text-lg">Volver</button>
-           <div className="flex flex-col items-center gap-2">
-             <button onClick={handleFinalStep} className="px-12 py-5 bg-teal-600 text-white rounded-full font-black text-xl flex items-center gap-3 shadow-lg active:scale-95 transition-all">
-               ¡A leer! <Check className="w-6 h-6" />
-             </button>
-             <span className="text-[10px] text-teal-600 font-bold uppercase tracking-widest flex items-center gap-1"><Volume2 className="w-3 h-3" /> Audio listo para tocar</span>
-           </div>
+           <button onClick={handleFinalStep} className="px-12 py-5 bg-teal-600 text-white rounded-full font-black text-xl flex items-center gap-3 shadow-lg active:scale-95 transition-all">
+             ¡A leer! <Check className="w-6 h-6" />
+           </button>
         </div>
       </div>
     );
@@ -234,14 +231,16 @@ export const AdaptiveReader: React.FC<AdaptiveReaderProps> = ({ text }) => {
 
       <div className={`flex-1 p-6 md:p-16 lg:p-24 overflow-y-auto custom-scrollbar ${getFontClass(settings.fontFamily)}`} style={{ fontSize: settings.fontSize, lineHeight: settings.lineHeight, letterSpacing: settings.letterSpacing, minHeight: '400px' }}>
         <div className="max-w-4xl mx-auto">
-          {(!text || text.trim().length < 2) ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-300 gap-4">
+          {(!text || text.trim().length < 5) ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-4">
               <AlertCircle className="w-16 h-16" />
               <p className="text-xl font-black uppercase tracking-widest">No hay texto para mostrar</p>
-              <p className="text-sm font-medium">Prueba subiendo el archivo de nuevo</p>
+              <p className="text-sm font-medium">Hubo un problema al leer el documento. Intenta subirlo de nuevo.</p>
             </div>
           ) : (
-            <p className={`whitespace-pre-wrap transition-colors duration-500 ${currentTheme.text} font-medium`}>{text}</p>
+            <p className={`whitespace-pre-wrap transition-colors duration-500 font-medium ${currentTheme.text}`} style={{ color: settings.theme === 'dark' ? '#f8fafc' : settings.theme === 'sepia' ? '#5B4636' : settings.theme === 'contrast' ? '#facc15' : '#1e293b' }}>
+              {text}
+            </p>
           )}
         </div>
       </div>
