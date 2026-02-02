@@ -38,13 +38,18 @@ export const UploadModule: React.FC<UploadModuleProps> = ({ onTextExtracted }) =
           const extractedText = await extractTextFromMedia(base64Data, mimeType);
           
           if (!extractedText || extractedText.trim().length < 5) {
-            throw new Error("No pudimos extraer texto legible de este archivo. Por favor, intenta con otra imagen o PDF.");
+            throw new Error("No pudimos extraer texto legible de este archivo. Por favor, intenta de nuevo o prueba con otro archivo.");
           }
           
           onTextExtracted(extractedText, file.name);
         } catch (innerErr: any) {
           console.error("Error detallado:", innerErr);
-          setError(innerErr.message || "No pudimos procesar este documento.");
+          // Handle overloading gracefully
+          if (innerErr.message?.includes("overloaded")) {
+            setError("El sistema está un poco cansado (servidor sobrecargado). Por favor, intenta de nuevo en unos segundos.");
+          } else {
+            setError(innerErr.message || "No pudimos procesar este documento.");
+          }
           setIsUploading(false);
         }
       };
@@ -66,14 +71,15 @@ export const UploadModule: React.FC<UploadModuleProps> = ({ onTextExtracted }) =
         <p className="text-xl text-gray-500">Sube un PDF o una foto de tu libro favorito.</p>
       </div>
 
-      <div className={`mb-10 p-6 rounded-[2.5rem] border-2 transition-all ${acceptedTerms ? 'bg-blue-50 border-blue-200' : 'bg-orange-50/50 border-orange-200'}`}>
+      {/* BLOQUE DE DISCLAIMER - OBLIGATORIO */}
+      <div className={`mb-10 p-6 rounded-[2.5rem] border-2 transition-all duration-300 ${acceptedTerms ? 'bg-blue-50 border-blue-200' : 'bg-orange-50 border-orange-200 shadow-lg shadow-orange-500/5'}`}>
         <label className="flex items-start gap-5 cursor-pointer group">
           <div className="relative flex items-center mt-1 scale-125">
             <input 
               type="checkbox" 
               checked={acceptedTerms}
               onChange={(e) => setAcceptedTerms(e.target.checked)}
-              className="peer h-6 w-6 cursor-pointer appearance-none rounded-md border-2 border-orange-300 transition-all checked:border-blue-500 checked:bg-blue-500"
+              className="peer h-6 w-6 cursor-pointer appearance-none rounded-md border-2 border-orange-400 transition-all checked:border-blue-500 checked:bg-blue-500"
             />
             <ShieldCheck className="absolute w-4 h-4 text-white left-1 opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
           </div>
@@ -90,7 +96,7 @@ export const UploadModule: React.FC<UploadModuleProps> = ({ onTextExtracted }) =
 
       <div 
         className={`relative border-4 border-dashed rounded-[3.5rem] p-16 text-center transition-all duration-500 ${
-          !acceptedTerms ? 'opacity-50 grayscale cursor-not-allowed bg-slate-100 border-slate-200' :
+          !acceptedTerms ? 'opacity-40 grayscale cursor-not-allowed bg-slate-100 border-slate-200' :
           isUploading ? 'border-blue-400 bg-blue-50 shadow-inner' : 'border-blue-200 hover:border-blue-400 bg-white hover:bg-blue-50/30 shadow-xl shadow-blue-500/5'
         }`}
       >
@@ -115,14 +121,14 @@ export const UploadModule: React.FC<UploadModuleProps> = ({ onTextExtracted }) =
             </>
           ) : (
             <>
-              {!acceptedTerms && <Lock className="w-12 h-12 text-orange-300 mb-4 animate-bounce" />}
+              {!acceptedTerms && <Lock className="w-12 h-12 text-orange-400 mb-4 animate-bounce" />}
               <div className={`w-28 h-28 ${acceptedTerms ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-400'} rounded-[2.5rem] flex items-center justify-center mb-8 shadow-lg transition-transform hover:scale-105`}>
                 <Upload className="w-14 h-14" />
               </div>
               <p className={`text-3xl font-black mb-3 ${acceptedTerms ? 'text-slate-800' : 'text-slate-400'}`}>
-                {acceptedTerms ? '¡Toca para elegir!' : 'Primero marca el check'}
+                {acceptedTerms ? '¡Toca para elegir!' : 'Acepta los términos primero'}
               </p>
-              <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">PDF o Fotos</p>
+              <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">PDF o Fotos de tu libro</p>
             </>
           )}
         </div>
@@ -140,36 +146,31 @@ export const UploadModule: React.FC<UploadModuleProps> = ({ onTextExtracted }) =
             </div>
             <div className="flex-1 overflow-y-auto p-8 md:p-12 custom-scrollbar text-slate-700 space-y-8 font-medium leading-relaxed">
               <section>
-                <h4 className="text-xl font-black text-blue-600 mb-4">1. Naturaleza de la Herramienta</h4>
-                <p>Claramente es una plataforma tecnológica de apoyo diseñada para mejorar la accesibilidad a la lectura y fomentar la comprensión de textos mediante Inteligencia Artificial.</p>
-                <p className="mt-2 font-bold">No es un dispositivo médico: El sistema no proporciona diagnósticos clínicos ni constituye un tratamiento para la dislexia, el TDAH o cualquier otra dificultad del aprendizaje.</p>
-                <p className="mt-2 text-sm text-slate-500">Supervisión Profesional: Esta herramienta debe utilizarse como un complemento y no como un sustituto de la terapia profesional. Se recomienda que el uso sea supervisado por psicopedagogos, docentes o adultos responsables.</p>
-              </section>
-
-              <section>
-                <h4 className="text-xl font-black text-blue-600 mb-4">2. Uso de IA y Precisión</h4>
-                <p>El usuario reconoce que las funciones de resumen, explicación, generación de cómics y videos son realizadas de forma automatizada por Inteligencia Artificial.</p>
-                <p className="mt-2 italic">Interpretación: La IA puede generar interpretaciones inexactas o imprecisiones. Los cómics y videos son recreaciones artísticas motivacionales.</p>
-              </section>
-
-              <section>
-                <h4 className="text-xl font-black text-blue-600 mb-4">3. Seguridad y Ética</h4>
-                <p>Filtros de Seguridad: El sistema cuenta con restricciones para evitar contenido violento o inapropiado. Si un texto es sensible, la IA podrá negarse a procesarlo.</p>
-                <p className="mt-2 font-bold text-teal-600">Supervisión del Adulto: El chat y la interacción deben ser monitoreados siempre por un adulto responsable.</p>
-              </section>
-
-              <section>
-                <h4 className="text-xl font-black text-blue-600 mb-4">4. Privacidad (Ley 25.326)</h4>
-                <ul className="list-disc pl-5 space-y-2">
-                  <li><span className="font-bold">No Almacenamiento Permanente:</span> Tus archivos se eliminan en un plazo máximo de 48 horas tras su procesamiento.</li>
-                  <li><span className="font-bold">No Entrenamiento:</span> Tus datos no se usan para entrenar modelos públicos ni se comparten con fines comerciales.</li>
-                  <li><span className="font-bold">Privacidad de Menores:</span> No recolectamos datos biométricos. Por favor, no subas imágenes con rostros de menores.</li>
-                </ul>
-              </section>
-
-              <section>
-                <h4 className="text-xl font-black text-blue-600 mb-4">5. Responsabilidad</h4>
-                <p>Claramente no se hace responsable por el uso indebido de material protegido por derechos de autor. El usuario declara poseer los derechos para uso privado o educativo.</p>
+                <h4 className="text-xl font-black text-blue-600 mb-4">Aviso Legal, Política de Privacidad y Compromiso Ético</h4>
+                <div className="space-y-6">
+                  <div>
+                    <h5 className="font-black text-slate-800">1. Naturaleza de la Herramienta</h5>
+                    <p>Claramente es una plataforma tecnológica de apoyo diseñada para mejorar la accesibilidad a la lectura y fomentar la comprensión de textos mediante Inteligencia Artificial.</p>
+                    <p className="mt-2 font-bold">No es un dispositivo médico: El sistema no proporciona diagnósticos clínicos ni constituye un tratamiento para la dislexia, el TDAH o cualquier otra dificultad del aprendizaje.</p>
+                    <p className="mt-2 text-sm">Supervisión Profesional: Esta herramienta debe utilizarse como un complemento y no como un sustituto de la terapia profesional.</p>
+                  </div>
+                  <div>
+                    <h5 className="font-black text-slate-800">2. Uso de Inteligencia Artificial (IA) y Precisión</h5>
+                    <p>El usuario reconoce que las funciones de resumen, explicación, generación de cómics y videos son realizadas de forma automatizada. La IA puede generar interpretaciones inexactas.</p>
+                  </div>
+                  <div>
+                    <h5 className="font-black text-slate-800">3. Compromiso Ético y Seguridad</h5>
+                    <p>Filtros de Seguridad: El sistema cuenta con restricciones automáticas para evitar contenido inapropiado. Supervisión del Adulto: El uso debe ser monitoreado por un adulto responsable.</p>
+                  </div>
+                  <div>
+                    <h5 className="font-black text-slate-800">4. Privacidad (Ley 25.326)</h5>
+                    <p>No Almacenamiento Permanente: Las fotografías o PDFs se eliminan en un plazo máximo de 48 horas. No Entrenamiento: Tus archivos no se utilizan para entrenar modelos públicos.</p>
+                  </div>
+                  <div>
+                    <h5 className="font-black text-slate-800">5. Propiedad Intelectual</h5>
+                    <p>El usuario declara poseer los derechos de uso sobre el material cargado. Claramente no se hace responsable por el uso indebido de material protegido.</p>
+                  </div>
+                </div>
               </section>
 
               <div className="bg-blue-50 p-6 rounded-2xl border-2 border-blue-100 flex flex-col items-center text-center gap-4">
@@ -203,19 +204,6 @@ export const UploadModule: React.FC<UploadModuleProps> = ({ onTextExtracted }) =
           </div>
         </div>
       )}
-
-      <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8">
-        {[
-          { icon: <File className="text-blue-500 w-10 h-10" />, label: "Libros PDF" },
-          { icon: <ImageIcon className="text-purple-500 w-10 h-10" />, label: "Fotos de Textos" },
-          { icon: <BookOpen className="text-orange-500 w-10 h-10" />, label: "Cuentos" }
-        ].map((item, idx) => (
-          <div key={idx} className="flex flex-col items-center p-8 bg-white rounded-[2.5rem] shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-2 transition-all duration-300">
-            <div className="mb-4">{item.icon}</div>
-            <span className="font-black text-gray-700 uppercase tracking-tighter">{item.label}</span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 };
