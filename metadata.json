@@ -1,8 +1,0 @@
-{
-  "name": "Claramente - Compañero de Lectura Adaptativo",
-  "description": "Una herramienta diseñada para niños neurodivergentes que transforma textos complejos en experiencias multisensoriales, resúmenes simples y cómics visuales.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone"
-  ]
-}
