@@ -11,7 +11,6 @@ import {
   MicOff, 
   VolumeX,
   Brain,
-  MessageCircle,
   PlayCircle
 } from 'lucide-react';
 import { Modality } from "@google/genai";
@@ -155,35 +154,34 @@ export const ExplainMode: React.FC<ExplainModeProps> = ({ text }) => {
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-auto lg:h-[calc(100vh-160px)]">
-      {/* Sidebar de Resumen y Preguntas */}
       <div className="w-full lg:w-1/3 space-y-4 lg:overflow-y-auto custom-scrollbar lg:pr-2">
-        <div className="bg-white border-2 border-yellow-100 rounded-3xl p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-4 text-yellow-600 font-black uppercase text-sm tracking-widest">
+        <div className="bg-white border-2 border-indigo-50 rounded-3xl p-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-4 text-indigo-600 font-black uppercase text-sm tracking-widest">
             <Sparkles className="w-5 h-5" /> Resumen Mágico
           </div>
           {isLoadingContent ? (
-            <div className="flex justify-center p-6"><Loader2 className="animate-spin text-yellow-300 w-8 h-8" /></div>
+            <div className="flex justify-center p-6"><Loader2 className="animate-spin text-indigo-300 w-8 h-8" /></div>
           ) : (
             <div className="space-y-3">
               {summary.map((p, i) => (
-                <div key={i} className="bg-yellow-50/50 p-4 rounded-2xl text-base font-medium text-slate-700 border border-yellow-100 shadow-sm">
+                <div key={i} className="bg-indigo-50/30 p-4 rounded-2xl text-base font-medium text-slate-700 border border-indigo-50">
                   {p}
                 </div>
               ))}
-              <button onClick={() => handleSpeak(999, summary.join(". "))} className="w-full mt-2 p-3 bg-yellow-400 text-yellow-900 rounded-xl font-bold flex items-center justify-center gap-2 text-sm hover:bg-yellow-500 transition-colors">
+              <button onClick={() => handleSpeak(999, summary.join(". "))} className="w-full mt-2 p-3 bg-indigo-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 text-sm hover:bg-indigo-600 transition-colors shadow-sm">
                 <PlayCircle className="w-4 h-4" /> Escuchar Resumen
               </button>
             </div>
           )}
         </div>
 
-        <div className="bg-white border-2 border-purple-100 rounded-3xl p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-4 text-purple-600 font-black uppercase text-sm tracking-widest">
+        <div className="bg-white border-2 border-indigo-50 rounded-3xl p-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-4 text-indigo-600 font-black uppercase text-sm tracking-widest">
             <Brain className="w-5 h-5" /> Sugerencias
           </div>
           <div className="flex flex-col gap-2">
             {suggestedQuestions.map((q, i) => (
-              <button key={i} onClick={() => handleSend(q)} className="bg-purple-50 text-purple-700 p-3 rounded-xl text-sm font-bold border border-purple-100 hover:bg-purple-100 transition-all text-left">
+              <button key={i} onClick={() => handleSend(q)} className="bg-indigo-50 text-indigo-700 p-3 rounded-xl text-sm font-bold border border-indigo-100 hover:bg-indigo-100 transition-all text-left">
                 {q}
               </button>
             ))}
@@ -191,21 +189,20 @@ export const ExplainMode: React.FC<ExplainModeProps> = ({ text }) => {
         </div>
       </div>
 
-      {/* Área del Chat */}
-      <div className="flex-1 flex flex-col bg-white border-2 border-slate-100 rounded-[2.5rem] shadow-sm overflow-hidden min-h-[500px]">
-        <div ref={scrollRef} className="flex-1 p-6 overflow-y-auto space-y-6 custom-scrollbar bg-slate-50/30">
+      <div className="flex-1 flex flex-col bg-white border-2 border-indigo-50 rounded-[2.5rem] shadow-sm overflow-hidden min-h-[500px]">
+        <div ref={scrollRef} className="flex-1 p-6 overflow-y-auto space-y-6 custom-scrollbar bg-slate-50/20">
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2`}>
               <div className={`flex gap-3 max-w-[90%] md:max-w-[80%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-teal-100 text-teal-600'}`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-600'}`}>
                   {msg.role === 'user' ? <User className="w-6 h-6" /> : <Bot className="w-6 h-6" />}
                 </div>
                 <div className="relative group">
-                  <div className={`p-4 md:p-5 rounded-2xl shadow-sm text-base md:text-lg font-medium leading-relaxed ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white border border-slate-100 rounded-tl-none text-slate-800'}`}>
+                  <div className={`p-4 md:p-5 rounded-2xl shadow-sm text-base md:text-lg font-medium leading-relaxed ${msg.role === 'user' ? 'bg-indigo-600 text-white rounded-tr-none shadow-indigo-100' : 'bg-white border border-indigo-50 rounded-tl-none text-slate-800'}`}>
                     {msg.text}
                   </div>
                   {msg.role === 'model' && (
-                    <button onClick={() => handleSpeak(idx, msg.text)} className={`absolute -right-10 top-0 p-2 rounded-full transition-all ${speakingIdx === idx ? 'bg-red-500 text-white' : 'text-slate-300 hover:text-teal-500'}`}>
+                    <button onClick={() => handleSpeak(idx, msg.text)} className={`absolute -right-10 top-0 p-2 rounded-full transition-all ${speakingIdx === idx ? 'bg-rose-500 text-white' : 'text-slate-300 hover:text-indigo-500'}`}>
                       {speakingIdx === idx ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                     </button>
                   )}
@@ -214,27 +211,27 @@ export const ExplainMode: React.FC<ExplainModeProps> = ({ text }) => {
             </div>
           ))}
           {isTyping && (
-            <div className="flex gap-2 p-3 items-center bg-white/70 w-fit rounded-full px-5 border border-slate-100 text-xs font-bold text-slate-400">
-              <Loader2 className="animate-spin w-4 h-4" /> Escribiendo...
+            <div className="flex gap-2 p-3 items-center bg-white/70 w-fit rounded-full px-5 border border-indigo-50 text-xs font-bold text-slate-400">
+              <Loader2 className="animate-spin w-4 h-4" /> Pensando...
             </div>
           )}
         </div>
 
-        <div className="p-4 md:p-6 border-t border-slate-100 bg-white">
+        <div className="p-4 md:p-6 border-t border-indigo-50 bg-white">
           <div className="flex gap-3 items-center">
             <div className="relative flex-1">
               <input 
                 type="text" value={input} 
                 onChange={(e) => setInput(e.target.value)} 
                 onKeyPress={(e) => e.key === 'Enter' && handleSend()} 
-                className={`w-full p-4 md:p-5 rounded-2xl bg-slate-50 border-2 outline-none transition-all text-base font-medium pr-14 ${isListening ? 'border-red-300 bg-red-50/30' : 'border-slate-50 focus:border-blue-200 focus:bg-white'}`} 
+                className={`w-full p-4 md:p-5 rounded-2xl bg-slate-50 border-2 outline-none transition-all text-base font-medium pr-14 ${isListening ? 'border-rose-300 bg-rose-50/30' : 'border-indigo-50 focus:border-indigo-200 focus:bg-white'}`} 
                 placeholder={isListening ? "Te escucho..." : "Escribe tu duda aquí..."} 
               />
-              <button onClick={toggleListen} className={`absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl transition-all flex items-center justify-center ${isListening ? 'bg-red-500 text-white animate-bounce' : 'bg-slate-100 text-slate-400 hover:text-blue-500'}`}>
+              <button onClick={toggleListen} className={`absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl transition-all flex items-center justify-center ${isListening ? 'bg-rose-500 text-white animate-bounce' : 'bg-slate-100 text-slate-400 hover:text-indigo-500'}`}>
                 {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
               </button>
             </div>
-            <button onClick={() => handleSend()} disabled={!input.trim() || isTyping} className={`w-14 h-14 rounded-2xl shadow-md transition-all flex items-center justify-center ${!input.trim() || isTyping ? 'bg-slate-100 text-slate-300' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+            <button onClick={() => handleSend()} disabled={!input.trim() || isTyping} className={`w-14 h-14 rounded-2xl shadow-md transition-all flex items-center justify-center ${!input.trim() || isTyping ? 'bg-slate-100 text-slate-300' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100'}`}>
               <Send className="w-7 h-7" />
             </button>
           </div>
