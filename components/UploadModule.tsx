@@ -1,6 +1,6 @@
 
 import React, { useRef, useState } from 'react';
-import { Upload, File, Loader2, AlertCircle, Image as ImageIcon, BookOpen, X, ShieldCheck } from 'lucide-react';
+import { Upload, File, Loader2, AlertCircle, Image as ImageIcon, BookOpen, X, ShieldCheck, Lock } from 'lucide-react';
 import { extractTextFromMedia } from '../services/geminiService';
 
 interface UploadModuleProps {
@@ -37,6 +37,10 @@ export const UploadModule: React.FC<UploadModuleProps> = ({ onTextExtracted }) =
           setLoadingPhase("Extrayendo texto con IA...");
           const extractedText = await extractTextFromMedia(base64Data, mimeType);
           
+          if (!extractedText || extractedText.trim().length < 5) {
+            throw new Error("No pudimos extraer texto legible de este archivo. Por favor, intenta con otra imagen o PDF.");
+          }
+          
           onTextExtracted(extractedText, file.name);
         } catch (innerErr: any) {
           console.error("Error detallado:", innerErr);
@@ -62,27 +66,32 @@ export const UploadModule: React.FC<UploadModuleProps> = ({ onTextExtracted }) =
         <p className="text-xl text-gray-500">Sube un PDF o una foto de tu libro favorito.</p>
       </div>
 
-      <div className="mb-8 bg-white/50 p-6 rounded-[2rem] border border-blue-50">
-        <label className="flex items-start gap-4 cursor-pointer group">
-          <div className="relative flex items-center mt-1">
+      <div className={`mb-10 p-6 rounded-[2.5rem] border-2 transition-all ${acceptedTerms ? 'bg-blue-50 border-blue-200' : 'bg-orange-50/50 border-orange-200'}`}>
+        <label className="flex items-start gap-5 cursor-pointer group">
+          <div className="relative flex items-center mt-1 scale-125">
             <input 
               type="checkbox" 
               checked={acceptedTerms}
               onChange={(e) => setAcceptedTerms(e.target.checked)}
-              className="peer h-6 w-6 cursor-pointer appearance-none rounded-md border-2 border-blue-200 transition-all checked:border-blue-500 checked:bg-blue-500"
+              className="peer h-6 w-6 cursor-pointer appearance-none rounded-md border-2 border-orange-300 transition-all checked:border-blue-500 checked:bg-blue-500"
             />
             <ShieldCheck className="absolute w-4 h-4 text-white left-1 opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
           </div>
-          <span className="text-sm font-medium text-slate-600 leading-relaxed">
-            He leído y acepto el <button onClick={() => setShowLegal(true)} className="text-blue-600 font-bold underline hover:text-blue-700">Aviso Legal y la Política de Privacidad</button>. Entiendo que Claramente es una herramienta de apoyo pedagógico y no un tratamiento médico.
-          </span>
+          <div className="flex flex-col">
+            <span className="text-base font-bold text-slate-800 leading-tight">
+              He leído y acepto el <button onClick={(e) => { e.preventDefault(); setShowLegal(true); }} className="text-blue-600 font-black underline decoration-2 underline-offset-4 hover:text-blue-700">Aviso Legal y la Política de Privacidad</button>.
+            </span>
+            <span className="text-sm text-slate-500 mt-2 font-medium">
+              Entiendo que Claramente es una herramienta de apoyo pedagógico y no un tratamiento médico.
+            </span>
+          </div>
         </label>
       </div>
 
       <div 
         className={`relative border-4 border-dashed rounded-[3.5rem] p-16 text-center transition-all duration-500 ${
-          !acceptedTerms ? 'opacity-40 grayscale cursor-not-allowed bg-slate-50' :
-          isUploading ? 'border-blue-400 bg-blue-50 shadow-inner' : 'border-gray-200 hover:border-blue-400 hover:bg-blue-50/30'
+          !acceptedTerms ? 'opacity-50 grayscale cursor-not-allowed bg-slate-100 border-slate-200' :
+          isUploading ? 'border-blue-400 bg-blue-50 shadow-inner' : 'border-blue-200 hover:border-blue-400 bg-white hover:bg-blue-50/30 shadow-xl shadow-blue-500/5'
         }`}
       >
         <input 
@@ -106,10 +115,13 @@ export const UploadModule: React.FC<UploadModuleProps> = ({ onTextExtracted }) =
             </>
           ) : (
             <>
-              <div className={`w-28 h-28 ${acceptedTerms ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-400'} rounded-[2.5rem] flex items-center justify-center mb-8 shadow-sm transition-transform hover:rotate-6`}>
+              {!acceptedTerms && <Lock className="w-12 h-12 text-orange-300 mb-4 animate-bounce" />}
+              <div className={`w-28 h-28 ${acceptedTerms ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-400'} rounded-[2.5rem] flex items-center justify-center mb-8 shadow-lg transition-transform hover:scale-105`}>
                 <Upload className="w-14 h-14" />
               </div>
-              <p className="text-3xl font-black text-gray-800 mb-3">Toca para elegir</p>
+              <p className={`text-3xl font-black mb-3 ${acceptedTerms ? 'text-slate-800' : 'text-slate-400'}`}>
+                {acceptedTerms ? '¡Toca para elegir!' : 'Primero marca el check'}
+              </p>
               <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">PDF o Fotos</p>
             </>
           )}
