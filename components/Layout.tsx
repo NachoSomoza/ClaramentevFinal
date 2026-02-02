@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Home, ArrowLeft, ShieldCheck } from 'lucide-react';
+import React from 'react';
+import { Home, ArrowLeft } from 'lucide-react';
 import { AppMode } from '../types';
 
 interface LayoutProps {
@@ -13,17 +13,17 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children, mode, onNavigateHome, onBack }) => {
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-white/70 backdrop-blur-md border-b border-blue-100 py-4 px-6 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+      <header className="bg-white/70 backdrop-blur-md border-b border-indigo-100 py-4 px-6 flex items-center justify-between sticky top-0 z-50 shadow-sm">
         <div 
           className="flex items-center gap-3 cursor-pointer group"
           onClick={onNavigateHome}
         >
-          <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center text-white shadow-md group-hover:rotate-6 transition-all">
+          <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-md group-hover:rotate-6 transition-all">
             <span className="font-black text-2xl">C</span>
           </div>
           <div className="flex flex-col -space-y-1">
-            <h1 className="text-2xl font-black tracking-tighter text-slate-800 group-hover:text-blue-600 transition-colors">Claramente</h1>
-            <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">v5.4 Soft Sky</span>
+            <h1 className="text-2xl font-black tracking-tighter text-slate-800 group-hover:text-indigo-600 transition-colors">Claramente</h1>
+            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">v5.5 Soft Lavender</span>
           </div>
         </div>
 
@@ -31,7 +31,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, mode, onNavigateHome, 
           {mode !== 'UPLOAD' && mode !== 'SELECTION' && (
             <button 
               onClick={onBack}
-              className="flex items-center gap-2 px-4 py-2 text-blue-600 bg-white border border-blue-100 hover:border-blue-300 rounded-xl font-bold transition-all active:scale-95 shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 text-indigo-600 bg-white border border-indigo-100 hover:border-indigo-300 rounded-xl font-bold transition-all active:scale-95 shadow-sm"
             >
               <ArrowLeft className="w-4 h-4" />
               <span className="hidden sm:inline">Volver</span>
@@ -39,7 +39,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, mode, onNavigateHome, 
           )}
           <button 
             onClick={onNavigateHome}
-            className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 rounded-xl transition-all active:scale-95 shadow-sm"
+            className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 rounded-xl transition-all active:scale-95 shadow-sm"
             title="Inicio"
           >
             <Home className="w-6 h-6" />
@@ -56,16 +56,16 @@ export const Layout: React.FC<LayoutProps> = ({ children, mode, onNavigateHome, 
           <p className="text-slate-400 font-bold text-[10px] tracking-[0.2em] uppercase">
             Compañero de Lectura Adaptativo
           </p>
-          <div className="px-4 py-1 bg-white border border-slate-100 rounded-full text-slate-400 text-[9px] font-bold shadow-sm">
-            TECNOLOGÍA GEMINI AI v3.0 | BUILD 2024.5.4
+          <div className="px-4 py-1 bg-white border border-indigo-50 rounded-full text-slate-400 text-[9px] font-bold shadow-sm">
+            TECNOLOGÍA GEMINI AI v3.0 | BUILD 2024.5.5
           </div>
         </div>
         
-        <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-blue-400">
+        <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-indigo-400">
            <span className="text-slate-300">●</span>
            <button 
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} 
-            className="hover:text-blue-600 transition-colors"
+            className="hover:text-indigo-600 transition-colors"
            >
             Aviso Legal y Privacidad
            </button>
