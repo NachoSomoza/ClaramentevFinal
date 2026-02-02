@@ -21,7 +21,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, mode, onNavigateHome, 
           <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center text-white shadow-md group-hover:rotate-6 transition-all">
             <span className="font-black text-2xl">C</span>
           </div>
-          <h1 className="text-2xl font-black tracking-tighter text-slate-800 group-hover:text-blue-600 transition-colors">Claramente</h1>
+          <div className="flex flex-col -space-y-1">
+            <h1 className="text-2xl font-black tracking-tighter text-slate-800 group-hover:text-blue-600 transition-colors">Claramente</h1>
+            <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">v5.4 Soft Sky</span>
+          </div>
         </div>
 
         <nav className="flex items-center gap-3">
@@ -54,7 +57,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, mode, onNavigateHome, 
             Compañero de Lectura Adaptativo
           </p>
           <div className="px-4 py-1 bg-white border border-slate-100 rounded-full text-slate-400 text-[9px] font-bold shadow-sm">
-            TECNOLOGÍA GEMINI AI v3.0
+            TECNOLOGÍA GEMINI AI v3.0 | BUILD 2024.5.4
           </div>
         </div>
         
