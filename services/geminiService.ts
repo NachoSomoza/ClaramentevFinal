@@ -87,7 +87,17 @@ export async function extractTextFromMedia(base64Data: string, mimeType: string)
     contents: {
       parts: [
         { inlineData: { data: base64Data, mimeType: mimeType } },
-        { text: `${KID_SAFETY_PROMPT}\nExtrae el texto. Si es inapropiado, aplica seguridad.` }
+        { text: `TAREA: Transcripción LITERAL completa.
+        Extrae TODO el texto contenido en este archivo adjunto palabra por palabra.
+        
+        REGLAS DE ORO:
+        1. NO RESUMAS la historia.
+        2. NO SIMPLIFIQUES el lenguaje ni las palabras difíciles.
+        3. NO OMITAS párrafos ni diálogos.
+        4. Necesito el texto EXACTO tal como aparece en el documento para una lectura adaptativa.
+        5. MANTÉN la estructura original de los párrafos.
+        
+        Si el contenido es violento o no apto para niños según tus filtros de seguridad, detente. De lo contrario, dame el contenido INTEGRO del archivo.` }
       ]
     }
   });
