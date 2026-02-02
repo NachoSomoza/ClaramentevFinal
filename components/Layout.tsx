@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { Home, ArrowLeft } from 'lucide-react';
+import React, { useState } from 'react';
+import { Home, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { AppMode } from '../types';
 
 interface LayoutProps {
@@ -48,7 +48,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, mode, onNavigateHome, 
         {children}
       </main>
 
-      <footer className="py-10 text-center">
+      <footer className="py-10 text-center flex flex-col items-center gap-4">
         <div className="inline-flex flex-col items-center gap-2">
           <p className="text-slate-400 font-bold text-[10px] tracking-[0.2em] uppercase">
             Compañero de Lectura Adaptativo
@@ -56,6 +56,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, mode, onNavigateHome, 
           <div className="px-4 py-1 bg-white border border-slate-100 rounded-full text-slate-400 text-[9px] font-bold shadow-sm">
             TECNOLOGÍA GEMINI AI v3.0
           </div>
+        </div>
+        
+        <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-blue-400">
+           <span className="text-slate-300">●</span>
+           <button 
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} 
+            className="hover:text-blue-600 transition-colors"
+           >
+            Aviso Legal y Privacidad
+           </button>
+           <span className="text-slate-300">●</span>
         </div>
       </footer>
     </div>
