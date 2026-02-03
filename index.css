@@ -1,0 +1,18 @@
+
+/* Reset de estilos básicos para consistencia */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Evitar que el zoom automático de iOS en inputs rompa el layout */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
